@@ -142,7 +142,7 @@ impl FromStr for Register {
     type Err = ();
 
     fn from_str(reg: &str) -> Result<Self, Self::Err> {
-        match reg.to_lowercase().as_str() {
+        match reg.trim_start_matches('$').to_lowercase().as_str() {
             "zero" | "r0" => Ok(Register::Zero),
             "at" => Ok(Register::At),
             "v0" => Ok(Register::V0),
