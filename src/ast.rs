@@ -1,16 +1,23 @@
 use std::convert::TryFrom;
 use std::str::FromStr;
 use strum_macros::EnumString;
+use thiserror::Error;
+
+#[derive(Error, Debug)]
+pub enum RegParseError {
+    #[error("invalid register `{0}`")]
+    RegParseError(String),
+}
 
 #[derive(Debug)]
 pub enum Token {
-    Label(Target),
+    Label(Immediate),
     Instruction(Instruction),
 }
 
 #[derive(Debug)]
 pub enum Target {
-    Label(String),
+    Function(String),
     Address(u32),
 }
 
@@ -18,6 +25,7 @@ pub enum Target {
 pub enum Immediate {
     Signed(i16),
     Unsigned(u16),
+    Label(String),
 }
 
 #[derive(Debug)]
@@ -97,7 +105,7 @@ impl Register {
 }
 
 impl TryFrom<i32> for Register {
-    type Error = ();
+    type Error = RegParseError;
 
     fn try_from(reg: i32) -> Result<Self, Self::Error> {
         match reg {
@@ -133,13 +141,13 @@ impl TryFrom<i32> for Register {
             29 => Ok(Register::Sp),
             30 => Ok(Register::Fp),
             31 => Ok(Register::Ra),
-            _ => Err(()),
+            e => Err(RegParseError::RegParseError(e.to_string())),
         }
     }
 }
 
 impl FromStr for Register {
-    type Err = ();
+    type Err = RegParseError;
 
     fn from_str(reg: &str) -> Result<Self, Self::Err> {
         match reg.trim_start_matches('$').to_lowercase().as_str() {
@@ -175,13 +183,13 @@ impl FromStr for Register {
             "sp" => Ok(Register::Sp),
             "fp" => Ok(Register::Fp),
             "ra" => Ok(Register::Ra),
-            _ => Err(()),
+            e => Err(RegParseError::RegParseError(e.to_string())),
         }
     }
 }
 
 #[derive(Debug, EnumString)]
-#[strum(serialize_all = "snake_case")]
+#[strum(ascii_case_insensitive)]
 pub enum ITypeOp {
     Addi,
     Addiu,
@@ -251,14 +259,14 @@ pub enum ITypeOp {
 }
 
 #[derive(Debug, EnumString)]
-#[strum(serialize_all = "snake_case")]
+#[strum(ascii_case_insensitive)]
 pub enum JTypeOp {
     J,
     Jal,
 }
 
 #[derive(Debug, EnumString)]
-#[strum(serialize_all = "snake_case")]
+#[strum(ascii_case_insensitive)]
 pub enum RTypeOp {
     Add,
     Addu,
