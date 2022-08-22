@@ -265,6 +265,27 @@ impl<'a> Parser<'a> {
                 }))
             }
             // -----------------------------------------------------------------
+            // |    op     |                       target                      |
+            // ------6-------------------------------26-------------------------
+            //  Format:  op target
+            "j" | "jal" => {
+                if args.len() != 1 {
+                    return Err(ParserError::InvalidOperandCount {
+                        line: inst.to_string(),
+                        expected: 1,
+                        found: args.len(),
+                    });
+                }
+                let target = args
+                    .get(0)
+                    .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?
+                    .trim();
+                Ok(ast::Token::Instruction(ast::Instruction::Jump {
+                    op: op.parse()?,
+                    target: Self::parse_target(target)?,
+                }))
+            }
+            // -----------------------------------------------------------------
             // |  SPECIAL  |      0000 0000 0000 000     |  stype  |    op     |
             // ------6-------------------15-------------------5---------6-------
             //  Format:  op          (stype = 0 implied)
