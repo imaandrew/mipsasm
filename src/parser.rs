@@ -547,6 +547,36 @@ impl<'a> Parser<'a> {
                     funct: op.parse()?,
                 }))
             }
+            // -----------------------------------------------------------------
+            // |  REGIMM   |   rs    |   op    |           immediate           |
+            // ------6----------5---------5-------------------16----------------
+            //  Format:  op rs, immediate
+            "bgez" | "bgezal" | "bgezall" | "bgezl" | "bltz" | "bltzal" | "bltzall" | "bltzl"
+            | "teqi" | "tgei" | "tgeiu" | "tlti" | "tltiu" | "tnei" => {
+                if args.len() != 2 {
+                    return Err(ParserError::InvalidOperandCount {
+                        line: inst.to_string(),
+                        expected: 2,
+                        found: args.len(),
+                    });
+                }
+                let rs = args
+                    .get(0)
+                    .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?
+                    .trim()
+                    .parse()
+                    .map_err(|_| ParserError::InvalidRegister(inst.to_string()))?;
+                let imm = args
+                    .get(1)
+                    .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?
+                    .trim();
+                Ok(ast::Token::Instruction(ast::Instruction::Regimm {
+                    op: ast::ITypeOp::Regimm,
+                    rs,
+                    sub: op.parse()?,
+                    imm: Self::parse_immediate(imm, true)?,
+                }))
+            }
             _ => Err(ParserError::InvalidInstruction(inst.to_string())),
         }
     }
