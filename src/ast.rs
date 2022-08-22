@@ -1,3 +1,4 @@
+use mipsasm_derive::{Op, Reg};
 use std::convert::TryFrom;
 use std::str::FromStr;
 use strum_macros::EnumString;
@@ -33,7 +34,7 @@ pub enum Instruction {
     Immediate {
         op: ITypeOp,
         rs: Register,
-        rt: Register,
+        rt: Box<dyn Reg>,
         imm: Immediate,
     },
     Jump {
@@ -54,15 +55,46 @@ pub enum Instruction {
         sub: ITypeOp,
         imm: Immediate,
     },
-    Copz {
-        op: ITypeOp,
+    CopI {
+        op: CopNum,
         rs: CopRs,
         rt: CopRt,
         imm: Immediate,
     },
+    CopR {
+        op: CopNum,
+        rs: Box<dyn Reg>,
+        rt: Box<dyn Reg>,
+        rd: Box<dyn Reg>,
+        sa: i16,
+        func: Box<dyn Op>,
+    },
+}
+
+pub trait Reg: std::fmt::Debug {
+    fn as_num(&self) -> u8;
+}
+
+pub trait Op: std::fmt::Debug {
+    fn as_num(&self) -> u8;
 }
 
 #[derive(Debug)]
+pub struct Null;
+
+impl Reg for Null {
+    fn as_num(&self) -> u8 {
+        0
+    }
+}
+
+impl Op for Null {
+    fn as_num(&self) -> u8 {
+        0
+    }
+}
+
+#[derive(Clone, Copy, Debug, Reg)]
 pub enum Register {
     Zero,
     At,
@@ -188,7 +220,127 @@ impl FromStr for Register {
     }
 }
 
-#[derive(Debug, EnumString)]
+#[derive(Clone, Copy, Debug, Reg)]
+pub enum FloatRegister {
+    Fv0,
+    Fv0f,
+    Fv1,
+    Fv1f,
+    Ft0,
+    Ft0f,
+    Ft1,
+    Ft1f,
+    Ft2,
+    Ft2f,
+    Ft3,
+    Ft3f,
+    Fa0,
+    Fa0f,
+    Fa1,
+    Fa1f,
+    Ft4,
+    Ft4f,
+    Ft5,
+    Ft5f,
+    Fs0,
+    Fs0f,
+    Fs1,
+    Fs1f,
+    Fs2,
+    Fs2f,
+    Fs3,
+    Fs3f,
+    Fs4,
+    Fs4f,
+    Fs5,
+    Fs5f,
+}
+
+impl TryFrom<i32> for FloatRegister {
+    type Error = RegParseError;
+
+    fn try_from(reg: i32) -> Result<Self, Self::Error> {
+        match reg {
+            0 => Ok(FloatRegister::Fv0),
+            1 => Ok(FloatRegister::Fv0f),
+            2 => Ok(FloatRegister::Fv1),
+            3 => Ok(FloatRegister::Fv1f),
+            4 => Ok(FloatRegister::Ft0),
+            5 => Ok(FloatRegister::Ft0f),
+            6 => Ok(FloatRegister::Ft1),
+            7 => Ok(FloatRegister::Ft1f),
+            8 => Ok(FloatRegister::Ft2),
+            9 => Ok(FloatRegister::Ft2f),
+            10 => Ok(FloatRegister::Ft3),
+            11 => Ok(FloatRegister::Ft3f),
+            12 => Ok(FloatRegister::Fa0),
+            13 => Ok(FloatRegister::Fa0f),
+            14 => Ok(FloatRegister::Fa1),
+            15 => Ok(FloatRegister::Fa1f),
+            16 => Ok(FloatRegister::Ft4),
+            17 => Ok(FloatRegister::Ft4f),
+            18 => Ok(FloatRegister::Ft5),
+            19 => Ok(FloatRegister::Ft5f),
+            20 => Ok(FloatRegister::Fs0),
+            21 => Ok(FloatRegister::Fs0f),
+            22 => Ok(FloatRegister::Fs1),
+            23 => Ok(FloatRegister::Fs1f),
+            24 => Ok(FloatRegister::Fs2),
+            25 => Ok(FloatRegister::Fs2f),
+            26 => Ok(FloatRegister::Fs3),
+            27 => Ok(FloatRegister::Fs3f),
+            28 => Ok(FloatRegister::Fs4),
+            29 => Ok(FloatRegister::Fs4f),
+            30 => Ok(FloatRegister::Fs5),
+            31 => Ok(FloatRegister::Fs5f),
+            e => Err(RegParseError::RegParseError(e.to_string())),
+        }
+    }
+}
+
+impl FromStr for FloatRegister {
+    type Err = RegParseError;
+
+    fn from_str(reg: &str) -> Result<Self, Self::Err> {
+        match reg.trim_start_matches('$').to_lowercase().as_str() {
+            "f0" | "fv0" => Ok(FloatRegister::Fv0),
+            "f1" | "fv0f" => Ok(FloatRegister::Fv0f),
+            "f2" | "fv1" => Ok(FloatRegister::Fv1),
+            "f3" | "fv1f" => Ok(FloatRegister::Fv1f),
+            "f4" | "ft0" => Ok(FloatRegister::Ft0),
+            "f5" | "ft0f" => Ok(FloatRegister::Ft0f),
+            "f6" | "ft1" => Ok(FloatRegister::Ft1),
+            "f7" | "ft1f" => Ok(FloatRegister::Ft1f),
+            "f8" | "ft2" => Ok(FloatRegister::Ft2),
+            "f9" | "ft2f" => Ok(FloatRegister::Ft2f),
+            "f10" | "ft3" => Ok(FloatRegister::Ft3),
+            "f11" | "ft3f" => Ok(FloatRegister::Ft3f),
+            "f12" | "fa0" => Ok(FloatRegister::Fa0),
+            "f13" | "fa0f" => Ok(FloatRegister::Fa0f),
+            "f14" | "fa1" => Ok(FloatRegister::Fa1),
+            "f15" | "fa1f" => Ok(FloatRegister::Fa1f),
+            "f16" | "ft4" => Ok(FloatRegister::Ft4),
+            "f17" | "ft4f" => Ok(FloatRegister::Ft4f),
+            "f18" | "ft5" => Ok(FloatRegister::Ft5),
+            "f19" | "ft5f" => Ok(FloatRegister::Ft5f),
+            "f20" | "fs0" => Ok(FloatRegister::Fs0),
+            "f21" | "fs0f" => Ok(FloatRegister::Fs0f),
+            "f22" | "fs1" => Ok(FloatRegister::Fs1),
+            "f23" | "fs1f" => Ok(FloatRegister::Fs1f),
+            "f24" | "fs2" => Ok(FloatRegister::Fs2),
+            "f25" | "fs2f" => Ok(FloatRegister::Fs2f),
+            "f26" | "fs3" => Ok(FloatRegister::Fs3),
+            "f27" | "fs3f" => Ok(FloatRegister::Fs3f),
+            "f28" | "fs4" => Ok(FloatRegister::Fs4),
+            "f29" | "fs4f" => Ok(FloatRegister::Fs4f),
+            "f30" | "fs5" => Ok(FloatRegister::Fs5),
+            "f31" | "fs5f" => Ok(FloatRegister::Fs5f),
+            e => Err(RegParseError::RegParseError(e.to_string())),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, EnumString, Op)]
 #[strum(ascii_case_insensitive)]
 pub enum ITypeOp {
     Addi,
@@ -220,7 +372,7 @@ pub enum ITypeOp {
     Lb,
     Lbu,
     Ld,
-    Ldcz,
+    Ldc1,
     Ldl,
     Ldr,
     Lh,
@@ -229,7 +381,7 @@ pub enum ITypeOp {
     Lld,
     Lui,
     Lw,
-    Lwcz,
+    Lwc1,
     Lwl,
     Lwr,
     Lwu,
@@ -239,14 +391,14 @@ pub enum ITypeOp {
     Sc,
     Scd,
     Sd,
-    Sdcz,
+    Sdc1,
     Sdl,
     Sdr,
     Sh,
     Slti,
     Sltiu,
     Sw,
-    Swcz,
+    Swc1,
     Swl,
     Swr,
     Teqi,
@@ -258,14 +410,14 @@ pub enum ITypeOp {
     Xori,
 }
 
-#[derive(Debug, EnumString)]
+#[derive(Clone, Copy, Debug, EnumString, Op)]
 #[strum(ascii_case_insensitive)]
 pub enum JTypeOp {
     J,
     Jal,
 }
 
-#[derive(Debug, EnumString)]
+#[derive(Clone, Copy, Debug, EnumString, Op)]
 #[strum(ascii_case_insensitive)]
 pub enum RTypeOp {
     Add,
@@ -337,6 +489,12 @@ pub enum RTypeOp {
 }
 
 #[derive(Debug)]
+pub enum CopNum {
+    Cop0,
+    Cop1,
+}
+
+#[derive(Clone, Copy, Debug, Reg)]
 pub enum CopRs {
     Mf,
     Dmf,
@@ -347,7 +505,8 @@ pub enum CopRs {
     Bc,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug, EnumString, Reg)]
+#[strum(ascii_case_insensitive)]
 pub enum CopRt {
     Bcf,
     Bct,
