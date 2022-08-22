@@ -66,7 +66,7 @@ pub enum Instruction {
         rs: Box<dyn Reg>,
         rt: Box<dyn Reg>,
         rd: Box<dyn Reg>,
-        sa: i16,
+        sa: Box<dyn Reg>,
         func: Box<dyn Op>,
     },
 }
@@ -500,4 +500,60 @@ pub enum CopRt {
     Bct,
     Bcfl,
     Bctl,
+}
+
+#[derive(Clone, Copy, Debug, EnumString, Reg)]
+#[strum(ascii_case_insensitive)]
+pub enum CopFmt {
+    S,
+    D,
+    W,
+    L,
+}
+
+#[derive(Clone, Copy, Debug, EnumString, Op)]
+#[strum(ascii_case_insensitive)]
+pub enum FloatOp {
+    Add,
+    Sub,
+    Mul,
+    Div,
+    Sqrt,
+    Abs,
+    Mov,
+    Neg,
+    RoundL,
+    TruncL,
+    CeilL,
+    FloorL,
+    RoundW,
+    TruncW,
+    CeilW,
+    FloorW,
+    CvtS,
+    CvtD,
+    CvtW,
+    CvtL,
+    C,
+}
+
+#[derive(Clone, Copy, Debug, EnumString, Op)]
+#[strum(ascii_case_insensitive)]
+pub enum FloatCompareCond {
+    F,
+    Un,
+    Eq,
+    Ueq,
+    Olt,
+    Ult,
+    Ole,
+    Ule,
+    Sf,
+    Ngle,
+    Seq,
+    UNgl,
+    Lt,
+    Nge,
+    Le,
+    Ngt,
 }

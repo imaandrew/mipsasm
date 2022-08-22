@@ -630,7 +630,7 @@ impl<'a> Parser<'a> {
                     rs: Box::new(Self::parse_cop_op(op)?),
                     rt: Box::new(rt),
                     rd: Box::new(rd),
-                    sa: 0,
+                    sa: Box::new(ast::Null),
                     func: Box::new(ast::Null),
                 }))
             }
@@ -663,7 +663,7 @@ impl<'a> Parser<'a> {
                     rs: Box::new(Self::parse_cop_op(op)?),
                     rt: Box::new(rt),
                     rd: Box::new(rd),
-                    sa: 0,
+                    sa: Box::new(ast::Null),
                     func: Box::new(ast::Null),
                 }))
             }
@@ -678,7 +678,7 @@ impl<'a> Parser<'a> {
                     rs: Box::new(ast::Register::null()),
                     rt: Box::new(ast::Register::null()),
                     rd: Box::new(ast::Register::null()),
-                    sa: 0,
+                    sa: Box::new(ast::Null),
                     func: Box::new(op.parse::<ast::RTypeOp>()?),
                 }))
             }
@@ -723,7 +723,127 @@ impl<'a> Parser<'a> {
                     imm: Self::parse_immediate(offset.trim(), true)?,
                 }))
             }
-            _ => Err(ParserError::InvalidInstruction(inst.to_string())),
+            _ => match &op.to_lowercase()[..op.len() - 2] {
+                // -----------------------------------------------------------------
+                // |   COP1    |   fmt   |   ft    |   fs    |   fd    |    op     |
+                // ------6----------5---------5---------5---------5----------6------
+                //  Format:  op.fmt fd, fs, ft
+                "add" | "sub" | "mul" | "div" => {
+                    if args.len() != 3 {
+                        return Err(ParserError::InvalidOperandCount {
+                            line: inst.to_string(),
+                            expected: 3,
+                            found: args.len(),
+                        });
+                    }
+                    let fd = args
+                        .get(0)
+                        .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?
+                        .trim()
+                        .parse::<ast::FloatRegister>()
+                        .map_err(|_| ParserError::InvalidRegister(inst.to_string()))?;
+                    let fs = args
+                        .get(1)
+                        .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?
+                        .trim()
+                        .parse::<ast::FloatRegister>()
+                        .map_err(|_| ParserError::InvalidRegister(inst.to_string()))?;
+                    let ft = args
+                        .get(2)
+                        .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?
+                        .trim()
+                        .parse::<ast::FloatRegister>()
+                        .map_err(|_| ParserError::InvalidRegister(inst.to_string()))?;
+                    Ok(ast::Token::Instruction(ast::Instruction::CopR {
+                        op: ast::CopNum::Cop1,
+                        rs: Box::new(op[op.len() - 1..].parse::<ast::CopFmt>()?),
+                        rt: Box::new(ft),
+                        rd: Box::new(fs),
+                        sa: Box::new(fd),
+                        func: Box::new(op.to_lowercase()[..op.len() - 2].parse::<ast::FloatOp>()?),
+                    }))
+                }
+                // -----------------------------------------------------------------
+                // |   COP1    |   fmt   |  00000  |   fs    |   fd    |    op     |
+                // ------6----------5---------5---------5---------5----------6------
+                //  Format:  op.fmt fd, fs
+                "abs" | "ceil.l" | "ceil.w" | "cvt.d" | "cvt.l" | "cvt.s" | "cvt.w" | "floor.l"
+                | "floor.w" | "mov" | "neg" | "round.l" | "round.w" | "sqrt" | "trunc.l"
+                | "trunc.w" => {
+                    if args.len() != 2 {
+                        return Err(ParserError::InvalidOperandCount {
+                            line: inst.to_string(),
+                            expected: 2,
+                            found: args.len(),
+                        });
+                    }
+                    let fd = args
+                        .get(0)
+                        .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?
+                        .trim()
+                        .parse::<ast::FloatRegister>()
+                        .map_err(|_| ParserError::InvalidRegister(inst.to_string()))?;
+                    let fs = args
+                        .get(1)
+                        .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?
+                        .trim()
+                        .parse::<ast::FloatRegister>()
+                        .map_err(|_| ParserError::InvalidRegister(inst.to_string()))?;
+                    Ok(ast::Token::Instruction(ast::Instruction::CopR {
+                        op: ast::CopNum::Cop1,
+                        rs: Box::new(op[op.len() - 1..].replace('.', "").parse::<ast::CopFmt>()?),
+                        rt: Box::new(ast::Null),
+                        rd: Box::new(fs),
+                        sa: Box::new(fd),
+                        func: Box::new(
+                            op.to_lowercase()[..op.len() - 2]
+                                .replace('.', "")
+                                .parse::<ast::FloatOp>()?,
+                        ),
+                    }))
+                }
+                e => {
+                    // |-----------|---------------------------------------------------|
+                    // |   COP1    |   fmt   |   ft    |   fs    | 000 |00 |11 | cond  |
+                    // ------6----------5---------5---------5-------3----2---2-----4----
+                    //  Format:  C.cond.fmt fs, ft
+                    if e.starts_with("c.") {
+                        if args.len() != 2 {
+                            return Err(ParserError::InvalidOperandCount {
+                                line: inst.to_string(),
+                                expected: 2,
+                                found: args.len(),
+                            });
+                        }
+                        let fs = args
+                            .get(0)
+                            .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?
+                            .trim()
+                            .parse::<ast::FloatRegister>()
+                            .map_err(|_| ParserError::InvalidRegister(inst.to_string()))?;
+                        let ft = args
+                            .get(1)
+                            .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?
+                            .trim()
+                            .parse::<ast::FloatRegister>()
+                            .map_err(|_| ParserError::InvalidRegister(inst.to_string()))?;
+                        return Ok(ast::Token::Instruction(ast::Instruction::CopR {
+                            op: ast::CopNum::Cop1,
+                            rs: Box::new(
+                                op[op.len() - 1..].replace('.', "").parse::<ast::CopFmt>()?,
+                            ),
+                            rt: Box::new(ft),
+                            rd: Box::new(fs),
+                            sa: Box::new(ast::Null),
+                            func: Box::new(
+                                op.to_lowercase()[2..op.len() - 2]
+                                    .parse::<ast::FloatCompareCond>()?,
+                            ),
+                        }));
+                    }
+                    Err(ParserError::InvalidInstruction(inst.to_string()))
+                }
+            },
         }
     }
 
