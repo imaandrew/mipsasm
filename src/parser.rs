@@ -582,6 +582,9 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_immediate(offset: &str, signed: bool) -> Result<ast::Immediate, ParserError> {
+        if offset.starts_with('.') {
+            return Ok(ast::Immediate::Label(offset.to_string()));
+        }
         let offset = offset.replace("0x", "");
         if signed {
             if offset.ends_with('`') {
