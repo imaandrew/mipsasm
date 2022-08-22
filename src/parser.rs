@@ -23,6 +23,10 @@ pub enum ParserError {
     InvalidTargetAddress(String),
     #[error("invalid immediate `{0}`")]
     InvalidImmediate(#[from] ParseIntError),
+    #[error("invalid coprocessor `{0}`")]
+    InvalidCopNumber(String),
+    #[error("invalid coprocessor sub-opcode `{0}`")]
+    InvalidCopSubOpcode(String),
 }
 
 pub fn parse(input: &str) -> Result<Vec<ast::Token>, ParserError> {
@@ -892,8 +896,7 @@ impl<'a> Parser<'a> {
         } else if cop_num.contains('1') {
             Ok(ast::CopNum::Cop1)
         } else {
-            //Err(ParserError::InvalidCopNum(cop_num.to_string()))
-            panic!()
+            Err(ParserError::InvalidCopNumber(cop_num.to_string()))
         }
     }
 
@@ -907,7 +910,7 @@ impl<'a> Parser<'a> {
             _ => match op[..3].to_lowercase().as_str() {
                 "dmf" => Ok(ast::CopRs::Dmf),
                 "dmt" => Ok(ast::CopRs::Dmt),
-                _ => panic!(),
+                _ => Err(ParserError::InvalidCopSubOpcode(op.to_string())),
             },
         }
     }
