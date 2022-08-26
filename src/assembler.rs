@@ -160,6 +160,7 @@ pub fn assemble(insts: Vec<ast::Instruction>) -> Vec<u32> {
                 R::Multu => rs.as_num() << 21 | rt.as_num() << 16 | 0b011001,
                 R::NegS => 0b010001 << 26 | 0b10000 << 21 | rs.as_num() << 11 | rd.as_num() << 6 | 0b000111,
                 R::NegD => 0b010001 << 26 | 0b10001 << 21 | rs.as_num() << 11 | rd.as_num() << 6 | 0b000111,
+                R::Negu => rd.as_num() << 21 | rs.as_num() << 11 | 0b100011,
                 R::Nor => rs.as_num() << 21 | rt.as_num() << 16 | rd.as_num() << 11 | 0b100111,
                 R::Or => rs.as_num() << 21 | rt.as_num() << 16 | rd.as_num() << 11 | 0b100101,
                 R::RoundLS => 0b010001 << 26 | 0b10000 << 21 | rs.as_num() << 11 | rd.as_num() << 6 | 0b001000,

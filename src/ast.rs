@@ -483,6 +483,7 @@ pub enum RTypeOp {
     Multu,
     NegS,
     NegD,
+    Negu,
     Nor,
     Or,
     RoundLS,

@@ -478,7 +478,7 @@ impl<'a> Parser<'a> {
             // |  SPECIAL  |   rs    |  00000  |   rd    |  00000  |    op     |
             // ------6----------5---------5---------5---------5----------6------
             //  Format:  op rs, rd
-            "jalr" => {
+            "jalr" | "negu" => {
                 if args.len() != 2 {
                     return Err(ParserError::InvalidOperandCount {
                         line: inst.to_string(),
