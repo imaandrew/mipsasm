@@ -92,8 +92,8 @@ impl<'a> Parser<'a> {
         let args = line.collect::<String>();
         let args = args.split(',').collect::<Vec<&str>>();
 
-        let offset_regex = Regex::new(r".+?\s*\(").unwrap();
-        let base_regex = Regex::new(r"\(.*\)").unwrap();
+        let offset_regex = Regex::new(r".+\s*\(").unwrap();
+        let base_regex = Regex::new(r"\(.*?\)").unwrap();
 
         match op.to_lowercase().trim() {
             // -----------------------------------------------------------------
@@ -115,24 +115,25 @@ impl<'a> Parser<'a> {
                     .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?
                     .trim()
                     .parse::<ast::Register>()
-                    .map_err(|_| ParserError::InvalidRegister(inst.to_string()))?;
+                    .unwrap();
                 let x = args
                     .get(1)
                     .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?;
                 let base = base_regex
-                    .find(x)
+                    .find_iter(x)
+                    .last()
                     .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?
                     .as_str()
                     .replace(&['(', ')'][..], "")
                     .trim()
                     .parse()
-                    .map_err(|_| ParserError::InvalidRegister(inst.to_string()))?;
+                    .unwrap();
                 if let Some(x) = offset_regex.find(x) {
                     Ok(ast::Instruction::Immediate {
                         op: op.parse()?,
                         rs: base,
                         rt,
-                        imm: self.parse_immediate(x.as_str().replace('(', "").trim(), true)?,
+                        imm: self.parse_immediate(x.as_str()[.. x.as_str().len() - 1].trim(), true)?,
                     })
                 } else {
                     Ok(ast::Instruction::Immediate {
@@ -710,7 +711,8 @@ impl<'a> Parser<'a> {
                     .get(1)
                     .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?;
                 let base = base_regex
-                    .find(x)
+                    .find_iter(x)
+                    .last()
                     .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?
                     .as_str()
                     .replace(&['(', ')'][..], "")
