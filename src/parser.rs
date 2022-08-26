@@ -32,8 +32,8 @@ pub enum ParserError {
     InvalidFloatCond(String),
 }
 
-pub fn scan(input: &str, base_addr: u32) -> Result<Vec<ast::Instruction>, ParserError> {
-    let mut parser = Parser::new(input, base_addr);
+pub fn scan(input: &str, base_addr: u32, syms: HashMap<String, u32>) -> Result<Vec<ast::Instruction>, ParserError> {
+    let mut parser = Parser::new(input, base_addr, syms);
     parser.scan()?;
     parser.adjust_labels();
     Ok(parser.insts)
@@ -44,15 +44,17 @@ struct Parser<'a> {
     insts: Vec<ast::Instruction>,
     labels: HashMap<&'a str, isize>,
     base_addr: u32,
+    syms: HashMap<String, u32>,
 }
 
 impl<'a> Parser<'a> {
-    fn new(input: &str, base_addr: u32) -> Parser {
+    fn new(input: &str, base_addr: u32, syms: HashMap<String, u32>) -> Parser {
         Parser {
             input,
             insts: vec![],
             labels: HashMap::new(),
             base_addr,
+            syms,
         }
     }
 
@@ -130,14 +132,14 @@ impl<'a> Parser<'a> {
                         op: op.parse()?,
                         rs: base,
                         rt,
-                        imm: parse_immediate(x.as_str().replace('(', "").trim(), true)?,
+                        imm: self.parse_immediate(x.as_str().replace('(', "").trim(), true)?,
                     })
                 } else {
                     Ok(ast::Instruction::Immediate {
                         op: op.parse()?,
                         rs: base,
                         rt,
-                        imm: parse_immediate("0", true)?,
+                        imm: self.parse_immediate("0", true)?,
                     })
                 }
             }
@@ -174,14 +176,14 @@ impl<'a> Parser<'a> {
                         op: op.parse()?,
                         rt,
                         rs,
-                        imm: parse_immediate(imm, false)?,
+                        imm: self.parse_immediate(imm, false)?,
                     })
                 } else {
                     Ok(ast::Instruction::Immediate {
                         op: op.parse()?,
                         rt,
                         rs,
-                        imm: parse_immediate(imm, true)?,
+                        imm: self.parse_immediate(imm, true)?,
                     })
                 }
             }
@@ -211,7 +213,7 @@ impl<'a> Parser<'a> {
                     op: op.parse()?,
                     rt,
                     rs: ast::Register::null(),
-                    imm: parse_immediate(imm, true)?,
+                    imm: self.parse_immediate(imm, true)?,
                 })
             }
             // -----------------------------------------------------------------
@@ -240,7 +242,7 @@ impl<'a> Parser<'a> {
                     op: op.parse()?,
                     rt: ast::Register::null(),
                     rs,
-                    imm: parse_immediate(imm, true)?,
+                    imm: self.parse_immediate(imm, true)?,
                 })
             }
             // -----------------------------------------------------------------
@@ -275,7 +277,7 @@ impl<'a> Parser<'a> {
                     op: op.parse()?,
                     rt,
                     rs,
-                    imm: parse_immediate(imm, true)?,
+                    imm: self.parse_immediate(imm, true)?,
                 })
             }
             // -----------------------------------------------------------------
@@ -296,7 +298,7 @@ impl<'a> Parser<'a> {
                     .trim();
                 Ok(ast::Instruction::Jump {
                     op: op.parse()?,
-                    target: parse_target(target)?,
+                    target: self.parse_target(target)?,
                 })
             }
             // -----------------------------------------------------------------
@@ -583,7 +585,7 @@ impl<'a> Parser<'a> {
                     op: op.parse()?,
                     rs,
                     rt: ast::Register::null(),
-                    imm: parse_immediate(imm, true)?,
+                    imm: self.parse_immediate(imm, true)?,
                 })
             }
             // -----------------------------------------------------------------
@@ -607,7 +609,7 @@ impl<'a> Parser<'a> {
                     op: op.parse()?,
                     rs: ast::Register::null(),
                     rt: ast::Register::null(),
-                    imm: parse_immediate(offset, true)?,
+                    imm: self.parse_immediate(offset, true)?,
                 })
             }
             // -----------------------------------------------------------------
@@ -720,14 +722,14 @@ impl<'a> Parser<'a> {
                         op: op.parse()?,
                         rs: base,
                         rt: ast::Register::from(ft),
-                        imm: parse_immediate(x.as_str().replace('(', "").trim(), true)?,
+                        imm: self.parse_immediate(x.as_str().replace('(', "").trim(), true)?,
                     })
                 } else {
                     Ok(ast::Instruction::Immediate {
                         op: op.parse()?,
                         rs: base,
                         rt: ast::Register::from(ft),
-                        imm: parse_immediate("0", true)?,
+                        imm: self.parse_immediate("0", true)?,
                     })
                 }
             }
@@ -881,51 +883,63 @@ impl<'a> Parser<'a> {
             }
         }
     }
-}
 
-fn parse_immediate(offset: &str, signed: bool) -> Result<ast::Immediate, ParserError> {
-    println!("{}", offset);
-    if offset.starts_with('.') {
-        return Ok(ast::Immediate::Label(offset.to_string()));
-    }
-    if signed {
-        if offset.ends_with('`') || !offset.contains("0x") {
+    fn parse_immediate(&self, offset: &str, signed: bool) -> Result<ast::Immediate, ParserError> {
+        println!("{}", offset);
+        if offset.starts_with('.') {
+            return Ok(ast::Immediate::Label(offset.to_string()));
+        }
+        let offset_regex = Regex::new(r"\(.*\)").unwrap();
+        if let Some(x) = offset_regex.find(offset) {
+            let x = self.parse_target(&x.as_str().replace(&['(', ')'][..], ""))?;
+            match &offset[..3] {
+                "%hi" => return Ok(ast::Immediate::Int((x.as_u32() >> 16) as u16)),
+                "%lo" => return Ok(ast::Immediate::Int((x.as_u32() & 0xffff) as u16)),
+                _ => todo!(),
+            }
+        }
+        if signed {
+            if offset.ends_with('`') || !offset.contains("0x") {
+                Ok(ast::Immediate::Int(
+                    offset.trim_end_matches('`').parse::<i32>().unwrap() as u16,
+                ))
+            } else {
+                let offset = offset.replace("0x", "");
+                Ok(ast::Immediate::Int(
+                    i32::from_str_radix(&offset, 16).unwrap() as u16,
+                ))
+            }
+        } else if offset.ends_with('`') || !offset.contains("0x") {
             Ok(ast::Immediate::Int(
-                offset.trim_end_matches('`').parse::<i32>().unwrap() as u16,
+                offset.trim_end_matches('`').parse::<u16>().unwrap(),
             ))
         } else {
             let offset = offset.replace("0x", "");
             Ok(ast::Immediate::Int(
-                i32::from_str_radix(&offset, 16).unwrap() as u16,
+                u32::from_str_radix(&offset, 16).unwrap() as u16,
             ))
         }
-    } else if offset.ends_with('`') || !offset.contains("0x") {
-        Ok(ast::Immediate::Int(
-            offset.trim_end_matches('`').parse::<u16>().unwrap(),
-        ))
-    } else {
-        let offset = offset.replace("0x", "");
-        Ok(ast::Immediate::Int(
-            u16::from_str_radix(&offset, 16).unwrap(),
-        ))
     }
-}
-
-fn parse_target(target: &str) -> Result<ast::Target, ParserError> {
-    if target.starts_with("~Func:") {
-        Ok(ast::Target::Function(target.replace("~Func:", "")))
-    } else if target.starts_with('.') {
-        Ok(ast::Target::Label(target.to_string()))
-    } else if target.ends_with('`') {
-        match target.trim_end_matches('`').parse::<u32>() {
-            Ok(addr) => Ok(ast::Target::Address(addr)),
-            Err(_) => Err(ParserError::InvalidTargetAddress(target.to_string())),
+    
+    fn parse_target(&self, target: &str) -> Result<ast::Target, ParserError> {
+        if let Some(x) = self.syms.get(target) {
+            return Ok(ast::Target::Address(*x));
         }
-    } else {
-        let addr = target.replace("0x", "");
-        match u32::from_str_radix(&addr, 16) {
-            Ok(addr) => Ok(ast::Target::Address(addr)),
-            Err(_) => Err(ParserError::InvalidTargetAddress(target.to_string())),
+        if target.starts_with("~Func:") {
+            Ok(ast::Target::Function(target.replace("~Func:", "")))
+        } else if target.starts_with('.') {
+            Ok(ast::Target::Label(target.to_string()))
+        } else if target.ends_with('`') {
+            match target.trim_end_matches('`').parse::<u32>() {
+                Ok(addr) => Ok(ast::Target::Address(addr)),
+                Err(_) => Err(ParserError::InvalidTargetAddress(target.to_string())),
+            }
+        } else {
+            let addr = target.replace("0x", "");
+            match u32::from_str_radix(&addr, 16) {
+                Ok(addr) => Ok(ast::Target::Address(addr)),
+                Err(_) => Err(ParserError::InvalidTargetAddress(target.to_string())),
+            }
         }
     }
 }
