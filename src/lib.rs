@@ -1,3 +1,4 @@
+pub mod assembler;
 mod ast;
 pub mod parser;
 

@@ -16,9 +16,14 @@ fn main() -> Result<(), Box<dyn error::Error>> {
         Some(file) => fs::read_to_string(file)?.parse()?,
         None => panic!(),
     };
-    match mipsasm::parser::parse(&data) {
-        Ok(n) => println!("{:#?}", n),
-        Err(e) => println!("Error: {}", e),
+    let x = match mipsasm::parser::scan(&data) {
+        Ok(n) => n,
+        Err(e) => panic!("Error: {}", e),
+    };
+    println!("{:#?}", x);
+    let a = mipsasm::assembler::assemble(x);
+    for i in a {
+        println!("{:08x}", i);
     }
     Ok(())
 }

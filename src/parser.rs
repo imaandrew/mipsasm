@@ -1,5 +1,6 @@
 use crate::ast;
 use regex::Regex;
+use std::collections::HashMap;
 use std::num::ParseIntError;
 use thiserror::Error;
 
@@ -27,54 +28,58 @@ pub enum ParserError {
     InvalidCopNumber(String),
     #[error("invalid coprocessor sub-opcode `{0}`")]
     InvalidCopSubOpcode(String),
+    #[error("invalid float compare condition `{0}`")]
+    InvalidFloatCond(String),
 }
 
-pub fn parse(input: &str) -> Result<Vec<ast::Token>, ParserError> {
+pub fn scan(input: &str) -> Result<Vec<ast::Instruction>, ParserError> {
     let mut parser = Parser::new(input);
-    parser.parse()?;
-    Ok(parser.tokens)
+    parser.scan()?;
+    parser.adjust_labels();
+    Ok(parser.insts)
 }
 
 struct Parser<'a> {
     input: &'a str,
-    tokens: Vec<ast::Token>,
-    labels: Vec<&'a str>,
+    insts: Vec<ast::Instruction>,
+    labels: HashMap<&'a str, isize>,
 }
 
 impl<'a> Parser<'a> {
     fn new(input: &str) -> Parser {
         Parser {
             input,
-            tokens: vec![],
-            labels: vec![],
+            insts: vec![],
+            labels: HashMap::new(),
         }
     }
 
-    fn parse(&mut self) -> Result<(), ParserError> {
+    fn scan(&mut self) -> Result<(), ParserError> {
         for line in self.input.lines() {
-            self.parse_line(line)?;
+            self.scan_line(line)?;
         }
         Ok(())
     }
 
-    fn parse_line(&mut self, line: &'a str) -> Result<(), ParserError> {
+    fn scan_line(&mut self, line: &'a str) -> Result<(), ParserError> {
         if line.starts_with('.') {
-            self.tokens.push(self.parse_label(line)?);
+            self.labels
+                .insert(self.parse_label(line)?, self.insts.len() as isize + 1);
         } else if !line.is_empty() {
-            self.tokens.push(self.parse_inst(line)?);
+            self.insts.push(self.parse_inst(line)?);
         }
 
         Ok(())
     }
 
-    fn parse_label(&self, label: &'a str) -> Result<ast::Token, ParserError> {
-        if self.labels.contains(&label) {
+    fn parse_label(&self, label: &'a str) -> Result<&'a str, ParserError> {
+        if self.labels.contains_key(&label) {
             return Err(ParserError::MultipleLabelDefinition(label.to_string()));
         }
-        Ok(ast::Token::Label(ast::Immediate::Label(label.to_string())))
+        Ok(label)
     }
 
-    fn parse_inst(&self, inst: &'a str) -> Result<ast::Token, ParserError> {
+    fn parse_inst(&self, inst: &'a str) -> Result<ast::Instruction, ParserError> {
         let mut line = inst.split_whitespace();
         let op = match line.next() {
             Some(x) => x,
@@ -86,7 +91,7 @@ impl<'a> Parser<'a> {
         let offset_regex = Regex::new(r".+?\s*\(").unwrap();
         let base_regex = Regex::new(r"\(.*\)").unwrap();
 
-        match op.to_lowercase().as_str() {
+        match op.to_lowercase().trim() {
             // -----------------------------------------------------------------
             // |    op     |  base   |   rt    |             offset            |
             // ------6----------5---------5-------------------16----------------
@@ -103,7 +108,7 @@ impl<'a> Parser<'a> {
                     });
                 }
                 let rt = args
-                    .get(0)
+                    .first()
                     .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?
                     .trim()
                     .parse::<ast::Register>()
@@ -124,12 +129,12 @@ impl<'a> Parser<'a> {
                     .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?
                     .as_str()
                     .replace('(', "");
-                Ok(ast::Token::Instruction(ast::Instruction::Immediate {
+                Ok(ast::Instruction::Immediate {
                     op,
                     rs: base,
-                    rt: Box::new(rt),
-                    imm: Self::parse_immediate(offset.trim(), true)?,
-                }))
+                    rt,
+                    imm: parse_immediate(offset.trim(), true)?,
+                })
             }
             // -----------------------------------------------------------------
             // |    op     |   rs    |   rt    |          immediate            |
@@ -144,7 +149,7 @@ impl<'a> Parser<'a> {
                     });
                 }
                 let rt = args
-                    .get(0)
+                    .first()
                     .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?
                     .trim()
                     .parse::<ast::Register>()
@@ -160,19 +165,19 @@ impl<'a> Parser<'a> {
                     .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?
                     .trim();
                 if op == "andi" || op == "ori" || op == "xori" {
-                    Ok(ast::Token::Instruction(ast::Instruction::Immediate {
+                    Ok(ast::Instruction::Immediate {
                         op: op.parse()?,
-                        rt: Box::new(rt),
+                        rt,
                         rs,
-                        imm: Self::parse_immediate(imm, false)?,
-                    }))
+                        imm: parse_immediate(imm, false)?,
+                    })
                 } else {
-                    Ok(ast::Token::Instruction(ast::Instruction::Immediate {
+                    Ok(ast::Instruction::Immediate {
                         op: op.parse()?,
-                        rt: Box::new(rt),
+                        rt,
                         rs,
-                        imm: Self::parse_immediate(imm, true)?,
-                    }))
+                        imm: parse_immediate(imm, true)?,
+                    })
                 }
             }
             // -----------------------------------------------------------------
@@ -188,7 +193,7 @@ impl<'a> Parser<'a> {
                     });
                 }
                 let rt = args
-                    .get(0)
+                    .first()
                     .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?
                     .trim()
                     .parse::<ast::Register>()
@@ -197,12 +202,12 @@ impl<'a> Parser<'a> {
                     .get(1)
                     .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?
                     .trim();
-                Ok(ast::Token::Instruction(ast::Instruction::Immediate {
+                Ok(ast::Instruction::Immediate {
                     op: op.parse()?,
-                    rt: Box::new(rt),
+                    rt,
                     rs: ast::Register::null(),
-                    imm: Self::parse_immediate(imm, true)?,
-                }))
+                    imm: parse_immediate(imm, true)?,
+                })
             }
             // -----------------------------------------------------------------
             // |    op     |   rs    |  00000  |            offset             |
@@ -217,7 +222,7 @@ impl<'a> Parser<'a> {
                     });
                 }
                 let rs = args
-                    .get(0)
+                    .first()
                     .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?
                     .trim()
                     .parse()
@@ -226,12 +231,12 @@ impl<'a> Parser<'a> {
                     .get(1)
                     .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?
                     .trim();
-                Ok(ast::Token::Instruction(ast::Instruction::Immediate {
+                Ok(ast::Instruction::Immediate {
                     op: op.parse()?,
-                    rt: Box::new(ast::Register::null()),
+                    rt: ast::Register::null(),
                     rs,
-                    imm: Self::parse_immediate(imm, true)?,
-                }))
+                    imm: parse_immediate(imm, true)?,
+                })
             }
             // -----------------------------------------------------------------
             // |    op     |   rs    |   rt    |            offset             |
@@ -246,7 +251,7 @@ impl<'a> Parser<'a> {
                     });
                 }
                 let rs = args
-                    .get(0)
+                    .first()
                     .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?
                     .trim()
                     .parse()
@@ -261,12 +266,12 @@ impl<'a> Parser<'a> {
                     .get(2)
                     .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?
                     .trim();
-                Ok(ast::Token::Instruction(ast::Instruction::Immediate {
+                Ok(ast::Instruction::Immediate {
                     op: op.parse()?,
-                    rt: Box::new(rt),
+                    rt,
                     rs,
-                    imm: Self::parse_immediate(imm, true)?,
-                }))
+                    imm: parse_immediate(imm, true)?,
+                })
             }
             // -----------------------------------------------------------------
             // |    op     |                       target                      |
@@ -281,26 +286,25 @@ impl<'a> Parser<'a> {
                     });
                 }
                 let target = args
-                    .get(0)
+                    .first()
                     .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?
                     .trim();
-                Ok(ast::Token::Instruction(ast::Instruction::Jump {
+                Ok(ast::Instruction::Jump {
                     op: op.parse()?,
-                    target: Self::parse_target(target)?,
-                }))
+                    target: parse_target(target)?,
+                })
             }
             // -----------------------------------------------------------------
             // |  SPECIAL  |      0000 0000 0000 000     |  stype  |    op     |
             // ------6-------------------15-------------------5---------6-------
             //  Format:  op          (stype = 0 implied)
-            "sync" => Ok(ast::Token::Instruction(ast::Instruction::Register {
-                op: ast::RTypeOp::Special,
+            "sync" => Ok(ast::Instruction::Register {
+                op: op.parse()?,
                 rd: ast::Register::null(),
                 rs: ast::Register::null(),
                 rt: ast::Register::null(),
                 sa: 0,
-                funct: op.parse()?,
-            })),
+            }),
             // -----------------------------------------------------------------
             // |  SPECIAL  |   rs    |   rt    |   rd    |  00000  |    op     |
             // ------6----------5---------5---------5---------5----------6------
@@ -315,7 +319,7 @@ impl<'a> Parser<'a> {
                     });
                 }
                 let rd = args
-                    .get(0)
+                    .first()
                     .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?
                     .trim()
                     .parse()
@@ -332,14 +336,13 @@ impl<'a> Parser<'a> {
                     .trim()
                     .parse()
                     .map_err(|_| ParserError::InvalidRegister(inst.to_string()))?;
-                Ok(ast::Token::Instruction(ast::Instruction::Register {
-                    op: ast::RTypeOp::Special,
+                Ok(ast::Instruction::Register {
+                    op: op.parse()?,
                     rd,
                     rs,
                     rt,
                     sa: 0,
-                    funct: op.parse()?,
-                }))
+                })
             }
             // -----------------------------------------------------------------
             // |  SPECIAL  |  00000  |   rt    |    rd   |   sa    |    op     |
@@ -354,7 +357,7 @@ impl<'a> Parser<'a> {
                     });
                 }
                 let rd = args
-                    .get(0)
+                    .first()
                     .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?
                     .trim()
                     .parse()
@@ -370,14 +373,13 @@ impl<'a> Parser<'a> {
                     .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?
                     .trim()
                     .parse()?;
-                Ok(ast::Token::Instruction(ast::Instruction::Register {
-                    op: ast::RTypeOp::Special,
+                Ok(ast::Instruction::Register {
+                    op: op.parse()?,
                     rd,
                     rs: ast::Register::null(),
                     rt,
                     sa,
-                    funct: op.parse()?,
-                }))
+                })
             }
             // -----------------------------------------------------------------
             // |  SPECIAL  |   rs    |   rt    |    rd   |  00000  |    op     |
@@ -392,7 +394,7 @@ impl<'a> Parser<'a> {
                     });
                 }
                 let rd = args
-                    .get(0)
+                    .first()
                     .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?
                     .trim()
                     .parse()
@@ -409,27 +411,25 @@ impl<'a> Parser<'a> {
                     .trim()
                     .parse()
                     .map_err(|_| ParserError::InvalidRegister(inst.to_string()))?;
-                Ok(ast::Token::Instruction(ast::Instruction::Register {
-                    op: ast::RTypeOp::Special,
+                Ok(ast::Instruction::Register {
+                    op: op.parse()?,
                     rd,
                     rs,
                     rt,
                     sa: 0,
-                    funct: op.parse()?,
-                }))
+                })
             }
             // -----------------------------------------------------------------
             // |  SPECIAL  |                   code                |    op     |
             // ------6--------------------------20-----------------------6------
             //  Format:  op offset
-            "break" | "syscall" => Ok(ast::Token::Instruction(ast::Instruction::Register {
-                op: ast::RTypeOp::Special,
+            "break" | "syscall" => Ok(ast::Instruction::Register {
+                op: op.parse()?,
                 rd: ast::Register::null(),
                 rs: ast::Register::null(),
                 rt: ast::Register::null(),
                 sa: 0,
-                funct: op.parse()?,
-            })),
+            }),
             // -----------------------------------------------------------------
             // |  SPECIAL  |   rs    |   rt    |   0000 0000 00    |    op     |
             // ------6----------5---------5--------------10--------------6------
@@ -444,7 +444,7 @@ impl<'a> Parser<'a> {
                     });
                 }
                 let rs = args
-                    .get(0)
+                    .first()
                     .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?
                     .trim()
                     .parse()
@@ -455,14 +455,13 @@ impl<'a> Parser<'a> {
                     .trim()
                     .parse()
                     .map_err(|_| ParserError::InvalidRegister(inst.to_string()))?;
-                Ok(ast::Token::Instruction(ast::Instruction::Register {
-                    op: ast::RTypeOp::Special,
+                Ok(ast::Instruction::Register {
+                    op: op.parse()?,
                     rd: ast::Register::null(),
                     rs,
                     rt,
                     sa: 0,
-                    funct: op.parse()?,
-                }))
+                })
             }
             // -----------------------------------------------------------------
             // |  SPECIAL  |   rs    |  00000  |   rd    |  00000  |    op     |
@@ -477,7 +476,7 @@ impl<'a> Parser<'a> {
                     });
                 }
                 let rs = args
-                    .get(0)
+                    .first()
                     .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?
                     .trim()
                     .parse()
@@ -488,14 +487,13 @@ impl<'a> Parser<'a> {
                     .trim()
                     .parse()
                     .map_err(|_| ParserError::InvalidRegister(inst.to_string()))?;
-                Ok(ast::Token::Instruction(ast::Instruction::Register {
-                    op: ast::RTypeOp::Special,
+                Ok(ast::Instruction::Register {
+                    op: op.parse()?,
                     rd,
                     rs,
                     rt: ast::Register::null(),
                     sa: 0,
-                    funct: op.parse()?,
-                }))
+                })
             }
             // -----------------------------------------------------------------
             // |  SPECIAL  |   rs    |     0000 0000 0000 000      |    op     |
@@ -510,19 +508,18 @@ impl<'a> Parser<'a> {
                     });
                 }
                 let rs = args
-                    .get(0)
+                    .first()
                     .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?
                     .trim()
                     .parse()
                     .map_err(|_| ParserError::InvalidRegister(inst.to_string()))?;
-                Ok(ast::Token::Instruction(ast::Instruction::Register {
-                    op: ast::RTypeOp::Special,
+                Ok(ast::Instruction::Register {
+                    op: op.parse()?,
                     rd: ast::Register::null(),
                     rs,
                     rt: ast::Register::null(),
                     sa: 0,
-                    funct: op.parse()?,
-                }))
+                })
             }
             // -----------------------------------------------------------------
             // |  SPECIAL  |   0000 0000 00    |   rd    |  00000  |    op     |
@@ -537,19 +534,18 @@ impl<'a> Parser<'a> {
                     });
                 }
                 let rd = args
-                    .get(0)
+                    .first()
                     .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?
                     .trim()
                     .parse()
                     .map_err(|_| ParserError::InvalidRegister(inst.to_string()))?;
-                Ok(ast::Token::Instruction(ast::Instruction::Register {
-                    op: ast::RTypeOp::Special,
+                Ok(ast::Instruction::Register {
+                    op: op.parse()?,
                     rd,
                     rs: ast::Register::null(),
                     rt: ast::Register::null(),
                     sa: 0,
-                    funct: op.parse()?,
-                }))
+                })
             }
             // -----------------------------------------------------------------
             // |  REGIMM   |   rs    |   op    |           immediate           |
@@ -565,7 +561,7 @@ impl<'a> Parser<'a> {
                     });
                 }
                 let rs = args
-                    .get(0)
+                    .first()
                     .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?
                     .trim()
                     .parse()
@@ -574,12 +570,12 @@ impl<'a> Parser<'a> {
                     .get(1)
                     .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?
                     .trim();
-                Ok(ast::Token::Instruction(ast::Instruction::Regimm {
-                    op: ast::ITypeOp::Regimm,
+                Ok(ast::Instruction::Immediate {
+                    op: op.parse()?,
                     rs,
-                    sub: op.parse()?,
-                    imm: Self::parse_immediate(imm, true)?,
-                }))
+                    rt: ast::Register::null(),
+                    imm: parse_immediate(imm, true)?,
+                })
             }
             // -----------------------------------------------------------------
             // |   COPz    |   op    |    bc    |           offset             |
@@ -595,15 +591,15 @@ impl<'a> Parser<'a> {
                     });
                 }
                 let offset = args
-                    .get(0)
+                    .first()
                     .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?
                     .trim();
-                Ok(ast::Token::Instruction(ast::Instruction::CopI {
-                    op: Self::parse_cop_num(op)?,
-                    rs: ast::CopRs::Bc,
-                    rt: op.replace(&['0', '1'][..], "").parse()?,
-                    imm: Self::parse_immediate(offset, true)?,
-                }))
+                Ok(ast::Instruction::Immediate {
+                    op: op.parse()?,
+                    rs: ast::Register::null(),
+                    rt: ast::Register::null(),
+                    imm: parse_immediate(offset, true)?,
+                })
             }
             // -----------------------------------------------------------------
             // |   COPz    |   op    |   rt    |   rd    |    0000 0000 000    |
@@ -618,7 +614,7 @@ impl<'a> Parser<'a> {
                     });
                 }
                 let rt = args
-                    .get(0)
+                    .first()
                     .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?
                     .trim()
                     .parse::<ast::Register>()
@@ -629,14 +625,13 @@ impl<'a> Parser<'a> {
                     .trim()
                     .parse::<ast::Register>()
                     .map_err(|_| ParserError::InvalidRegister(inst.to_string()))?;
-                Ok(ast::Token::Instruction(ast::Instruction::CopR {
-                    op: Self::parse_cop_num(op)?,
-                    rs: Box::new(Self::parse_cop_op(op)?),
-                    rt: Box::new(rt),
-                    rd: Box::new(rd),
-                    sa: Box::new(ast::Null),
-                    func: Box::new(ast::Null),
-                }))
+                Ok(ast::Instruction::Register {
+                    op: op.parse()?,
+                    rs: ast::Register::null(),
+                    rt,
+                    rd,
+                    sa: 0,
+                })
             }
             // -----------------------------------------------------------------
             // |   COPz    |   op    |   rt    |   fs    |    0000 0000 000    |
@@ -651,7 +646,7 @@ impl<'a> Parser<'a> {
                     });
                 }
                 let rt = args
-                    .get(0)
+                    .first()
                     .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?
                     .trim()
                     .parse::<ast::Register>()
@@ -662,30 +657,26 @@ impl<'a> Parser<'a> {
                     .trim()
                     .parse::<ast::FloatRegister>()
                     .map_err(|_| ParserError::InvalidRegister(inst.to_string()))?;
-                Ok(ast::Token::Instruction(ast::Instruction::CopR {
-                    op: Self::parse_cop_num(op)?,
-                    rs: Box::new(Self::parse_cop_op(op)?),
-                    rt: Box::new(rt),
-                    rd: Box::new(rd),
-                    sa: Box::new(ast::Null),
-                    func: Box::new(ast::Null),
-                }))
+                Ok(ast::Instruction::Register {
+                    op: op.parse()?,
+                    rs: ast::Register::null(),
+                    rt,
+                    rd: ast::Register::from(rd),
+                    sa: 0,
+                })
             }
             // -----------------------------------------------------------------
             // |   COPz    |CO|      0000 0000 0000 0000 000       |    op     |
             // ------6------1-------------------19-----------------------6------
             //  Format:  op
             // TODO: Figure out what CO is
-            "eret" | "tlbp" | "tlbr" | "tlbwi" | "tlbwr" => {
-                Ok(ast::Token::Instruction(ast::Instruction::CopR {
-                    op: ast::CopNum::Cop0,
-                    rs: Box::new(ast::Register::null()),
-                    rt: Box::new(ast::Register::null()),
-                    rd: Box::new(ast::Register::null()),
-                    sa: Box::new(ast::Null),
-                    func: Box::new(op.parse::<ast::RTypeOp>()?),
-                }))
-            }
+            "eret" | "tlbp" | "tlbr" | "tlbwi" | "tlbwr" => Ok(ast::Instruction::Register {
+                op: op.parse()?,
+                rs: ast::Register::null(),
+                rt: ast::Register::null(),
+                rd: ast::Register::null(),
+                sa: 0,
+            }),
             // -----------------------------------------------------------------
             // |    op     |   base  |   ft    |            offset             |
             // ------6----------5---------5-------------------16----------------
@@ -699,7 +690,7 @@ impl<'a> Parser<'a> {
                     });
                 }
                 let ft = args
-                    .get(0)
+                    .first()
                     .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?
                     .trim()
                     .parse::<ast::FloatRegister>()
@@ -720,12 +711,12 @@ impl<'a> Parser<'a> {
                     .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?
                     .as_str()
                     .replace('(', "");
-                Ok(ast::Token::Instruction(ast::Instruction::Immediate {
+                Ok(ast::Instruction::Immediate {
                     op: op.parse()?,
                     rs: base,
-                    rt: Box::new(ft),
-                    imm: Self::parse_immediate(offset.trim(), true)?,
-                }))
+                    rt: ast::Register::from(ft),
+                    imm: parse_immediate(offset.trim(), true)?,
+                })
             }
             _ => match &op.to_lowercase()[..op.len() - 2] {
                 // -----------------------------------------------------------------
@@ -741,7 +732,7 @@ impl<'a> Parser<'a> {
                         });
                     }
                     let fd = args
-                        .get(0)
+                        .first()
                         .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?
                         .trim()
                         .parse::<ast::FloatRegister>()
@@ -758,14 +749,13 @@ impl<'a> Parser<'a> {
                         .trim()
                         .parse::<ast::FloatRegister>()
                         .map_err(|_| ParserError::InvalidRegister(inst.to_string()))?;
-                    Ok(ast::Token::Instruction(ast::Instruction::CopR {
-                        op: ast::CopNum::Cop1,
-                        rs: Box::new(op[op.len() - 1..].parse::<ast::CopFmt>()?),
-                        rt: Box::new(ft),
-                        rd: Box::new(fs),
-                        sa: Box::new(fd),
-                        func: Box::new(op.to_lowercase()[..op.len() - 2].parse::<ast::FloatOp>()?),
-                    }))
+                    Ok(ast::Instruction::Register {
+                        op: op.replace('.', "").parse()?,
+                        rs: ast::Register::from(fs),
+                        rt: ast::Register::from(ft),
+                        rd: ast::Register::from(fd),
+                        sa: 0,
+                    })
                 }
                 // -----------------------------------------------------------------
                 // |   COP1    |   fmt   |  00000  |   fs    |   fd    |    op     |
@@ -782,7 +772,7 @@ impl<'a> Parser<'a> {
                         });
                     }
                     let fd = args
-                        .get(0)
+                        .first()
                         .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?
                         .trim()
                         .parse::<ast::FloatRegister>()
@@ -793,18 +783,13 @@ impl<'a> Parser<'a> {
                         .trim()
                         .parse::<ast::FloatRegister>()
                         .map_err(|_| ParserError::InvalidRegister(inst.to_string()))?;
-                    Ok(ast::Token::Instruction(ast::Instruction::CopR {
-                        op: ast::CopNum::Cop1,
-                        rs: Box::new(op[op.len() - 1..].replace('.', "").parse::<ast::CopFmt>()?),
-                        rt: Box::new(ast::Null),
-                        rd: Box::new(fs),
-                        sa: Box::new(fd),
-                        func: Box::new(
-                            op.to_lowercase()[..op.len() - 2]
-                                .replace('.', "")
-                                .parse::<ast::FloatOp>()?,
-                        ),
-                    }))
+                    Ok(ast::Instruction::Register {
+                        op: op.replace('.', "").parse()?,
+                        rs: ast::Register::from(fs),
+                        rt: ast::Register::null(),
+                        rd: ast::Register::from(fd),
+                        sa: 0,
+                    })
                 }
                 e => {
                     // -----------------------------------------------------------------
@@ -820,7 +805,7 @@ impl<'a> Parser<'a> {
                             });
                         }
                         let fs = args
-                            .get(0)
+                            .first()
                             .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?
                             .trim()
                             .parse::<ast::FloatRegister>()
@@ -831,19 +816,15 @@ impl<'a> Parser<'a> {
                             .trim()
                             .parse::<ast::FloatRegister>()
                             .map_err(|_| ParserError::InvalidRegister(inst.to_string()))?;
-                        return Ok(ast::Token::Instruction(ast::Instruction::CopR {
-                            op: ast::CopNum::Cop1,
-                            rs: Box::new(
-                                op[op.len() - 1..].replace('.', "").parse::<ast::CopFmt>()?,
-                            ),
-                            rt: Box::new(ft),
-                            rd: Box::new(fs),
-                            sa: Box::new(ast::Null),
-                            func: Box::new(
-                                op.to_lowercase()[2..op.len() - 2]
-                                    .parse::<ast::FloatCompareCond>()?,
-                            ),
-                        }));
+                        return Ok(ast::Instruction::Register {
+                            op: format!("C{}", op.chars().last().unwrap()).parse()?,
+                            rs: ast::Register::from(fs),
+                            rt: ast::Register::from(ft),
+                            rd: ast::Register::null(),
+                            sa: parse_float_cond(
+                                op.split('.').collect::<Vec<&str>>().get(1).unwrap(),
+                            )?,
+                        });
                     }
                     Err(ParserError::InvalidInstruction(inst.to_string()))
                 }
@@ -851,67 +832,79 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn parse_immediate(offset: &str, signed: bool) -> Result<ast::Immediate, ParserError> {
-        if offset.starts_with('.') {
-            return Ok(ast::Immediate::Label(offset.to_string()));
-        }
-        let offset = offset.replace("0x", "");
-        if signed {
-            if offset.ends_with('`') {
-                Ok(ast::Immediate::Signed(
-                    offset.trim_end_matches('`').parse::<i16>()?,
-                ))
-            } else {
-                Ok(ast::Immediate::Signed(i16::from_str_radix(&offset, 16)?))
+    fn adjust_labels(&mut self) {
+        for i in 0..self.insts.len() {
+            if let ast::Instruction::Immediate { op, rs, rt, imm: ast::Immediate::Label(lbl) } = &self.insts[i] {
+                    let lbl_addr = self.labels.get(lbl.as_str()).unwrap();
+                    self.insts[i] = ast::Instruction::Immediate {
+                        op: *op,
+                        rs: *rs,
+                        rt: *rt,
+                        imm: ast::Immediate::Int((*lbl_addr - (i + 1) as isize) as u16 * 4),
+                    };
             }
-        } else if offset.ends_with('`') {
-            Ok(ast::Immediate::Unsigned(
-                offset.trim_end_matches('`').parse::<u16>()?,
+        }
+    }
+}
+
+fn parse_immediate(offset: &str, signed: bool) -> Result<ast::Immediate, ParserError> {
+    if offset.starts_with('.') {
+        return Ok(ast::Immediate::Label(offset.to_string()));
+    }
+    if signed {
+        if offset.ends_with('`') || !offset.contains("0x") {
+            Ok(ast::Immediate::Int(
+                offset.trim_end_matches('`').parse::<i32>()? as u16,
             ))
         } else {
-            Ok(ast::Immediate::Unsigned(u16::from_str_radix(&offset, 16)?))
+            let offset = offset.replace("0x", "");
+            Ok(ast::Immediate::Int(i32::from_str_radix(&offset, 16)? as u16))
+        }
+    } else if offset.ends_with('`') || !offset.contains("0x") {
+        Ok(ast::Immediate::Int(
+            offset.trim_end_matches('`').parse::<u16>()?,
+        ))
+    } else {
+        let offset = offset.replace("0x", "");
+        Ok(ast::Immediate::Int(u16::from_str_radix(&offset, 16)?))
+    }
+}
+
+fn parse_target(target: &str) -> Result<ast::Target, ParserError> {
+    if target.starts_with("~Func:") {
+        Ok(ast::Target::Function(target.replace("~Func:", "")))
+    } else if target.ends_with('`') {
+        match target.trim_end_matches('`').parse::<u32>() {
+            Ok(addr) => Ok(ast::Target::Address(addr)),
+            Err(_) => Err(ParserError::InvalidTargetAddress(target.to_string())),
+        }
+    } else {
+        let addr = target.replace("0x", "");
+        match u32::from_str_radix(&addr, 16) {
+            Ok(addr) => Ok(ast::Target::Address(addr)),
+            Err(_) => Err(ParserError::InvalidTargetAddress(target.to_string())),
         }
     }
+}
 
-    fn parse_target(target: &str) -> Result<ast::Target, ParserError> {
-        if target.starts_with("~Func:") {
-            Ok(ast::Target::Function(target.replace("~Func:", "")))
-        } else if target.ends_with('`') {
-            match target.trim_end_matches('`').parse::<u32>() {
-                Ok(addr) => Ok(ast::Target::Address(addr)),
-                Err(_) => Err(ParserError::InvalidTargetAddress(target.to_string())),
-            }
-        } else {
-            let addr = target.replace("0x", "");
-            match u32::from_str_radix(&addr, 16) {
-                Ok(addr) => Ok(ast::Target::Address(addr)),
-                Err(_) => Err(ParserError::InvalidTargetAddress(target.to_string())),
-            }
-        }
-    }
-
-    fn parse_cop_num(cop_num: &str) -> Result<ast::CopNum, ParserError> {
-        if cop_num.contains('0') {
-            Ok(ast::CopNum::Cop0)
-        } else if cop_num.contains('1') {
-            Ok(ast::CopNum::Cop1)
-        } else {
-            Err(ParserError::InvalidCopNumber(cop_num.to_string()))
-        }
-    }
-
-    fn parse_cop_op(op: &str) -> Result<ast::CopRs, ParserError> {
-        match op[..2].to_lowercase().as_str() {
-            "mf" => Ok(ast::CopRs::Mf),
-            "cf" => Ok(ast::CopRs::Cf),
-            "mt" => Ok(ast::CopRs::Mt),
-            "ct" => Ok(ast::CopRs::Ct),
-            "bc" => Ok(ast::CopRs::Bc),
-            _ => match op[..3].to_lowercase().as_str() {
-                "dmf" => Ok(ast::CopRs::Dmf),
-                "dmt" => Ok(ast::CopRs::Dmt),
-                _ => Err(ParserError::InvalidCopSubOpcode(op.to_string())),
-            },
-        }
+fn parse_float_cond(cond: &str) -> Result<i16, ParserError> {
+    match cond.to_lowercase().as_str() {
+        "f" => Ok(0),
+        "un" => Ok(1),
+        "eq" => Ok(2),
+        "ueq" => Ok(3),
+        "olt" => Ok(4),
+        "ult" => Ok(5),
+        "ole" => Ok(6),
+        "ule" => Ok(7),
+        "sf" => Ok(8),
+        "ngle" => Ok(9),
+        "seq" => Ok(10),
+        "ngl" => Ok(11),
+        "lt" => Ok(12),
+        "nge" => Ok(13),
+        "le" => Ok(14),
+        "ngt" => Ok(15),
+        _ => Err(ParserError::InvalidFloatCond(cond.to_string())),
     }
 }

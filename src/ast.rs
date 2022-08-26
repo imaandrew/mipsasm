@@ -1,5 +1,4 @@
-use mipsasm_derive::{Op, Reg};
-use std::convert::TryFrom;
+use std::convert::{From, TryFrom};
 use std::str::FromStr;
 use strum_macros::EnumString;
 use thiserror::Error;
@@ -11,22 +10,35 @@ pub enum RegParseError {
 }
 
 #[derive(Debug)]
-pub enum Token {
-    Label(Immediate),
-    Instruction(Instruction),
-}
-
-#[derive(Debug)]
 pub enum Target {
     Function(String),
     Address(u32),
 }
 
+impl Target {
+    pub fn as_u32(&self) -> u32 {
+        match self {
+            Target::Function(name) => {
+                panic!("{}", name)
+            }
+            Target::Address(addr) => *addr,
+        }
+    }
+}
+
 #[derive(Debug)]
 pub enum Immediate {
-    Signed(i16),
-    Unsigned(u16),
+    Int(u16),
     Label(String),
+}
+
+impl Immediate {
+    pub fn as_u32(&self) -> u32 {
+        match self {
+            Immediate::Int(i) => *i as u32,
+            Immediate::Label(lbl) => panic!("{}", lbl),
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -34,7 +46,7 @@ pub enum Instruction {
     Immediate {
         op: ITypeOp,
         rs: Register,
-        rt: Box<dyn Reg>,
+        rt: Register,
         imm: Immediate,
     },
     Jump {
@@ -47,54 +59,10 @@ pub enum Instruction {
         rt: Register,
         rd: Register,
         sa: i16,
-        funct: RTypeOp,
-    },
-    Regimm {
-        op: ITypeOp,
-        rs: Register,
-        sub: ITypeOp,
-        imm: Immediate,
-    },
-    CopI {
-        op: CopNum,
-        rs: CopRs,
-        rt: CopRt,
-        imm: Immediate,
-    },
-    CopR {
-        op: CopNum,
-        rs: Box<dyn Reg>,
-        rt: Box<dyn Reg>,
-        rd: Box<dyn Reg>,
-        sa: Box<dyn Reg>,
-        func: Box<dyn Op>,
     },
 }
 
-pub trait Reg: std::fmt::Debug {
-    fn as_num(&self) -> u8;
-}
-
-pub trait Op: std::fmt::Debug {
-    fn as_num(&self) -> u8;
-}
-
-#[derive(Debug)]
-pub struct Null;
-
-impl Reg for Null {
-    fn as_num(&self) -> u8 {
-        0
-    }
-}
-
-impl Op for Null {
-    fn as_num(&self) -> u8 {
-        0
-    }
-}
-
-#[derive(Clone, Copy, Debug, Reg)]
+#[derive(Clone, Copy, Debug)]
 pub enum Register {
     Zero,
     At,
@@ -220,7 +188,19 @@ impl FromStr for Register {
     }
 }
 
-#[derive(Clone, Copy, Debug, Reg)]
+impl From<FloatRegister> for Register {
+    fn from(reg: FloatRegister) -> Self {
+        Register::try_from(reg as i32).unwrap()
+    }
+}
+
+impl Register {
+    pub fn as_num(&self) -> u32 {
+        *self as u32
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
 pub enum FloatRegister {
     Fv0,
     Fv0f,
@@ -340,12 +320,20 @@ impl FromStr for FloatRegister {
     }
 }
 
-#[derive(Clone, Copy, Debug, EnumString, Op)]
+#[derive(Clone, Copy, Debug, EnumString)]
 #[strum(ascii_case_insensitive)]
 pub enum ITypeOp {
     Addi,
     Addiu,
     Andi,
+    Bc0f,
+    Bc0fl,
+    Bc0t,
+    Bc0tl,
+    Bc1f,
+    Bc1fl,
+    Bc1t,
+    Bc1tl,
     Beq,
     Beql,
     Bgez,
@@ -382,7 +370,6 @@ pub enum ITypeOp {
     Lwr,
     Lwu,
     Ori,
-    Regimm,
     Sb,
     Sc,
     Scd,
@@ -406,61 +393,110 @@ pub enum ITypeOp {
     Xori,
 }
 
-#[derive(Clone, Copy, Debug, EnumString, Op)]
+#[derive(Clone, Copy, Debug, EnumString)]
 #[strum(ascii_case_insensitive)]
 pub enum JTypeOp {
     J,
     Jal,
 }
 
-#[derive(Clone, Copy, Debug, EnumString, Op)]
+#[derive(Clone, Copy, Debug, EnumString)]
 #[strum(ascii_case_insensitive)]
 pub enum RTypeOp {
+    AbsS,
+    AbsD,
     Add,
     Addu,
+    AddS,
+    AddD,
     And,
     Break,
+    Cs,
+    Cd,
+    CeilLS,
+    CeilLD,
+    CeilWS,
+    CeilWD,
+    Cfc1,
+    Ctc1,
+    CvtDS,
+    CvtDW,
+    CvtDL,
+    CvtLS,
+    CvtLD,
+    CvtSD,
+    CvtSW,
+    CvtSL,
+    CvtWS,
+    CvtWD,
     Dadd,
     Daddu,
     Ddiv,
     Ddivu,
     Div,
     Divu,
+    DivS,
+    DivD,
+    Dmfc0,
+    Dmfc1,
+    Dmtc0,
+    Dmtc1,
     Dmult,
     Dmultu,
     Dsll,
-    Dsllv,
     Dsll32,
+    Dsllv,
     Dsra,
-    Dsrav,
     Dsra32,
+    Dsrav,
     Dsrl,
-    Dsrlv,
     Dsrl32,
+    Dsrlv,
     Dsub,
     Dsubu,
     Eret,
+    FloorLS,
+    FloorLD,
+    FloorWS,
+    FloorWD,
     Jalr,
     Jr,
+    Mfc0,
+    Mfc1,
     Mfhi,
     Mflo,
+    MovS,
+    MovD,
+    Mtc0,
+    Mtc1,
     Mthi,
     Mtlo,
+    MulS,
+    MulD,
     Mult,
     Multu,
+    NegS,
+    NegD,
     Nor,
     Or,
+    RoundLS,
+    RoundLD,
+    RoundWS,
+    RoundWD,
     Sll,
     Sllv,
     Slt,
     Sltu,
-    Special,
+    SqrtS,
+    SqrtD,
     Sra,
     Srav,
     Srl,
     Srlv,
     Sub,
     Subu,
+    SubS,
+    SubD,
     Sync,
     Syscall,
     Teq,
@@ -473,87 +509,9 @@ pub enum RTypeOp {
     Tlt,
     Tltu,
     Tne,
+    TruncLS,
+    TruncLD,
+    TruncWS,
+    TruncWD,
     Xor,
-}
-
-#[derive(Debug)]
-pub enum CopNum {
-    Cop0,
-    Cop1,
-}
-
-#[derive(Clone, Copy, Debug, Reg)]
-pub enum CopRs {
-    Mf,
-    Dmf,
-    Cf,
-    Mt,
-    Dmt,
-    Ct,
-    Bc,
-}
-
-#[derive(Clone, Copy, Debug, EnumString, Reg)]
-#[strum(ascii_case_insensitive)]
-pub enum CopRt {
-    Bcf,
-    Bct,
-    Bcfl,
-    Bctl,
-}
-
-#[derive(Clone, Copy, Debug, EnumString, Reg)]
-#[strum(ascii_case_insensitive)]
-pub enum CopFmt {
-    S,
-    D,
-    W,
-    L,
-}
-
-#[derive(Clone, Copy, Debug, EnumString, Op)]
-#[strum(ascii_case_insensitive)]
-pub enum FloatOp {
-    Add,
-    Sub,
-    Mul,
-    Div,
-    Sqrt,
-    Abs,
-    Mov,
-    Neg,
-    RoundL,
-    TruncL,
-    CeilL,
-    FloorL,
-    RoundW,
-    TruncW,
-    CeilW,
-    FloorW,
-    CvtS,
-    CvtD,
-    CvtW,
-    CvtL,
-    C,
-}
-
-#[derive(Clone, Copy, Debug, EnumString, Op)]
-#[strum(ascii_case_insensitive)]
-pub enum FloatCompareCond {
-    F,
-    Un,
-    Eq,
-    Ueq,
-    Olt,
-    Ult,
-    Ole,
-    Ule,
-    Sf,
-    Ngle,
-    Seq,
-    UNgl,
-    Lt,
-    Nge,
-    Le,
-    Ngt,
 }
