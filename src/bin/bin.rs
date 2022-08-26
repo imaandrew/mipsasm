@@ -16,7 +16,7 @@ fn main() -> Result<(), Box<dyn error::Error>> {
         Some(file) => fs::read_to_string(file)?.parse()?,
         None => panic!(),
     };
-    let x = match mipsasm::parser::scan(&data) {
+    let x = match mipsasm::parser::scan(&data, 0x800F52E0) {
         Ok(n) => n,
         Err(e) => panic!("Error: {}", e),
     };

@@ -12,6 +12,7 @@ pub enum RegParseError {
 #[derive(Debug)]
 pub enum Target {
     Function(String),
+    Label(String),
     Address(u32),
 }
 
@@ -19,6 +20,9 @@ impl Target {
     pub fn as_u32(&self) -> u32 {
         match self {
             Target::Function(name) => {
+                panic!("{}", name)
+            }
+            Target::Label(name) => {
                 panic!("{}", name)
             }
             Target::Address(addr) => *addr,
@@ -58,7 +62,7 @@ pub enum Instruction {
         rs: Register,
         rt: Register,
         rd: Register,
-        sa: i16,
+        sa: u16,
     },
 }
 
@@ -336,6 +340,7 @@ pub enum ITypeOp {
     Bc1tl,
     Beq,
     Beql,
+    Beqz,
     Bgez,
     Bgezal,
     Bgezall,
@@ -349,6 +354,7 @@ pub enum ITypeOp {
     Bltzall,
     Bltzl,
     Bne,
+    Bnez,
     Bnel,
     Cache,
     Daddi,
