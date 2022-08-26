@@ -479,8 +479,8 @@ impl<'a> Parser<'a> {
             // |  SPECIAL  |   rs    |  00000  |   rd    |  00000  |    op     |
             // ------6----------5---------5---------5---------5----------6------
             //  Format:  op rs, rd
-            "jalr" | "negu" => {
-                if args.len() != 2 {
+            "jalr" => {
+                if args.len() != 2 && args.len() != 1 {
                     return Err(ParserError::InvalidOperandCount {
                         line: inst.to_string(),
                         expected: 2,
@@ -493,12 +493,12 @@ impl<'a> Parser<'a> {
                     .trim()
                     .parse()
                     .map_err(|_| ParserError::InvalidRegister(inst.to_string()))?;
-                let rd = args
-                    .get(1)
-                    .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?
-                    .trim()
+                let rd = match args.get(1) {
+                    Some(x) => x.trim()
                     .parse()
-                    .map_err(|_| ParserError::InvalidRegister(inst.to_string()))?;
+                    .map_err(|_| ParserError::InvalidRegister(inst.to_string()))?,
+                    None => ast::Register::null(),
+                };
                 Ok(ast::Instruction::Register {
                     op: op.parse()?,
                     rd,
@@ -742,6 +742,34 @@ impl<'a> Parser<'a> {
                 rd: ast::Register::null(),
                 sa: 0,
             }),
+            "negu" => {
+                if args.len() != 2 {
+                    return Err(ParserError::InvalidOperandCount {
+                        line: inst.to_string(),
+                        expected: 2,
+                        found: args.len(),
+                    });
+                }
+                let rd = args
+                    .first()
+                    .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?
+                    .trim()
+                    .parse()
+                    .map_err(|_| ParserError::InvalidRegister(inst.to_string()))?;
+                let rs = args
+                    .get(1)
+                    .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?
+                    .trim()
+                    .parse()
+                    .map_err(|_| ParserError::InvalidRegister(inst.to_string()))?;
+                Ok(ast::Instruction::Register {
+                    op: op.parse()?,
+                    rd,
+                    rs,
+                    rt: ast::Register::null(),
+                    sa: 0,
+                })
+            }
             _ => match &op.to_lowercase()[..op.len() - 2] {
                 // -----------------------------------------------------------------
                 // |   COP1    |   fmt   |   ft    |   fs    |   fd    |    op     |
