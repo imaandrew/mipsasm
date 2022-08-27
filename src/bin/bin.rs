@@ -40,7 +40,7 @@ fn main() -> Result<(), Box<dyn error::Error>> {
     println!("{:#?}", x);
     let a = mipsasm::assembler::assemble(x);
     for i in a {
-        println!("{:08x}", i);
+        println!("{:08X}", i);
     }
     Ok(())
 }

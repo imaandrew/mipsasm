@@ -68,7 +68,7 @@ impl<'a> Parser<'a> {
     fn scan_line(&mut self, line: &'a str) -> Result<(), ParserError> {
         if line.starts_with('.') {
             self.labels
-                .insert(self.parse_label(line)?, self.insts.len() as isize + 1);
+                .insert(self.parse_label(line)?, self.insts.len() as isize);
         } else if !line.is_empty() {
             self.insts.push(self.parse_inst(line)?);
         }
@@ -898,7 +898,7 @@ impl<'a> Parser<'a> {
                     op: *op,
                     rs: *rs,
                     rt: *rt,
-                    imm: ast::Immediate::Int((*lbl_addr - (i + 1) as isize) as u16 * 4),
+                    imm: ast::Immediate::Int((*lbl_addr - (i + 1) as isize) as u16),
                 };
             } else if let ast::Instruction::Jump {
                 op,
@@ -915,7 +915,6 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_immediate(&self, offset: &str, signed: bool) -> Result<ast::Immediate, ParserError> {
-        println!("{}", offset);
         if offset.starts_with('.') {
             return Ok(ast::Immediate::Label(offset.to_string()));
         }
@@ -923,7 +922,7 @@ impl<'a> Parser<'a> {
         if let Some(x) = offset_regex.find(offset) {
             let x = self.parse_target(&x.as_str().replace(&['(', ')'][..], ""))?;
             match &offset[..3] {
-                "%hi" => return Ok(ast::Immediate::Int((x.as_u32() >> 16) as u16)),
+                "%hi" => return Ok(ast::Immediate::Int(((x.as_u32() + (x.as_u32() & 0x8000) * 2) >> 16) as u16)),
                 "%lo" => return Ok(ast::Immediate::Int((x.as_u32() & 0xffff) as u16)),
                 _ => todo!(),
             }
