@@ -497,7 +497,7 @@ impl<'a> Parser<'a> {
                     Some(x) => x.trim()
                     .parse()
                     .map_err(|_| ParserError::InvalidRegister(inst.to_string()))?,
-                    None => ast::Register::null(),
+                    None => ast::Register::Ra,
                 };
                 Ok(ast::Instruction::Register {
                     op: op.parse()?,
