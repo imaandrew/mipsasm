@@ -927,7 +927,7 @@ impl<'a> Parser<'a> {
             }
         }
         if signed {
-            if offset.ends_with('`') || !offset.contains("0x") {
+            if offset.ends_with('`') {
                 Ok(ast::Immediate::Int(
                     offset.trim_end_matches('`').parse::<i32>().map_err(|_| ParserError::InvalidImmediate(offset.to_string()))? as u16,
                 ))
