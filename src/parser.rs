@@ -1,7 +1,6 @@
 use crate::ast;
 use regex::Regex;
 use std::collections::HashMap;
-use std::num::ParseIntError;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -22,8 +21,8 @@ pub enum ParserError {
     InvalidRegister(String),
     #[error("invalid target address `{0}`")]
     InvalidTargetAddress(String),
-    //#[error("invalid immediate `{0}`")]
-    //InvalidImmediate(#[from] ParseIntError),
+    #[error("invalid immediate `{0}`")]
+    InvalidImmediate(String),
     #[error("invalid coprocessor `{0}`")]
     InvalidCopNumber(String),
     #[error("invalid coprocessor sub-opcode `{0}`")]
@@ -930,22 +929,22 @@ impl<'a> Parser<'a> {
         if signed {
             if offset.ends_with('`') || !offset.contains("0x") {
                 Ok(ast::Immediate::Int(
-                    offset.trim_end_matches('`').parse::<i32>().unwrap() as u16,
+                    offset.trim_end_matches('`').parse::<i32>().map_err(|_| ParserError::InvalidImmediate(offset.to_string()))? as u16,
                 ))
             } else {
                 let offset = offset.replace("0x", "");
                 Ok(ast::Immediate::Int(
-                    i32::from_str_radix(&offset, 16).unwrap() as u16,
+                    i32::from_str_radix(&offset, 16).map_err(|_| ParserError::InvalidImmediate(offset.to_string()))? as u16,
                 ))
             }
         } else if offset.ends_with('`') || !offset.contains("0x") {
             Ok(ast::Immediate::Int(
-                offset.trim_end_matches('`').parse::<u16>().unwrap(),
+                offset.trim_end_matches('`').parse::<u16>().map_err(|_| ParserError::InvalidImmediate(offset.to_string()))?,
             ))
         } else {
             let offset = offset.replace("0x", "");
             Ok(ast::Immediate::Int(
-                u32::from_str_radix(&offset, 16).unwrap() as u16,
+                u32::from_str_radix(&offset, 16).map_err(|_| ParserError::InvalidImmediate(offset.to_string()))? as u16,
             ))
         }
     }
