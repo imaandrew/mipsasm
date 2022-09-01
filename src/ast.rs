@@ -108,10 +108,10 @@ impl Register {
     }
 }
 
-impl TryFrom<i32> for Register {
+impl TryFrom<u32> for Register {
     type Error = RegParseError;
 
-    fn try_from(reg: i32) -> Result<Self, Self::Error> {
+    fn try_from(reg: u32) -> Result<Self, Self::Error> {
         match reg {
             0 => Ok(Register::Zero),
             1 => Ok(Register::At),
@@ -194,7 +194,7 @@ impl FromStr for Register {
 
 impl From<FloatRegister> for Register {
     fn from(reg: FloatRegister) -> Self {
-        Register::try_from(reg as i32).unwrap()
+        Register::try_from(reg as u32).unwrap()
     }
 }
 
@@ -363,6 +363,7 @@ pub enum ITypeOp {
     Lbu,
     Ld,
     Ldc1,
+    Ldc2,
     Ldl,
     Ldr,
     Lh,
@@ -372,6 +373,7 @@ pub enum ITypeOp {
     Lui,
     Lw,
     Lwc1,
+    Lwc2,
     Lwl,
     Lwr,
     Lwu,
@@ -381,6 +383,7 @@ pub enum ITypeOp {
     Scd,
     Sd,
     Sdc1,
+    Sdc2,
     Sdl,
     Sdr,
     Sh,
@@ -388,6 +391,7 @@ pub enum ITypeOp {
     Sltiu,
     Sw,
     Swc1,
+    Swc2,
     Swl,
     Swr,
     Teqi,
