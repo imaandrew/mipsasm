@@ -492,7 +492,7 @@ impl<'a> Parser<'a> {
             // -----------------------------------------------------------------
             // |  SPECIAL  |   rs    |  00000  |   rd    |  00000  |    op     |
             // ------6----------5---------5---------5---------5----------6------
-            //  Format:  op rs, rd
+            //  Format:  op rd, rs
             "jalr" => {
                 if args.len() != 2 && args.len() != 1 {
                     return Err(ParserError::InvalidOperandCount {
@@ -507,20 +507,29 @@ impl<'a> Parser<'a> {
                     .trim()
                     .parse()
                     .map_err(|_| ParserError::InvalidRegister(inst.to_string()))?;
-                let rd = match args.get(1) {
-                    Some(x) => x
+                if args.len() == 1 {
+                    Ok(ast::Instruction::Register {
+                        op: op.parse()?,
+                        rd: ast::Register::null(),
+                        rs,
+                        rt: ast::Register::null(),
+                        sa: 0,
+                    })
+                } else {
+                    let rd = args
+                        .get(1)
+                        .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?
                         .trim()
                         .parse()
-                        .map_err(|_| ParserError::InvalidRegister(inst.to_string()))?,
-                    None => ast::Register::Ra,
-                };
-                Ok(ast::Instruction::Register {
-                    op: op.parse()?,
-                    rd,
-                    rs,
-                    rt: ast::Register::null(),
-                    sa: 0,
-                })
+                        .map_err(|_| ParserError::InvalidRegister(inst.to_string()))?;
+                    Ok(ast::Instruction::Register {
+                        op: op.parse()?,
+                        rd: rs,
+                        rs: rd,
+                        rt: ast::Register::null(),
+                        sa: 0,
+                    })
+                }
             }
             // -----------------------------------------------------------------
             // |  SPECIAL  |   rs    |     0000 0000 0000 000      |    op     |
