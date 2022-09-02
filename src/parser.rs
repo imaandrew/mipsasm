@@ -113,12 +113,22 @@ impl<'a> Parser<'a> {
                         found: args.len(),
                     });
                 }
-                let rt = args
-                    .first()
-                    .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?
-                    .trim()
-                    .parse::<ast::Register>()
-                    .unwrap();
+                let rt = if op.to_lowercase().trim() == "cache" {
+                    ast::Register::try_from(
+                        args.first()
+                            .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?
+                            .trim()
+                            .parse::<u32>()
+                            .unwrap(),
+                    )
+                    .unwrap()
+                } else {
+                    args.first()
+                        .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?
+                        .trim()
+                        .parse::<ast::Register>()
+                        .unwrap()
+                };
                 let x = args
                     .get(1)
                     .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?;
