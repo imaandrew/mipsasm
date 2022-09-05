@@ -1,6 +1,7 @@
 use std::convert::{From, TryFrom};
+use std::fmt;
 use std::str::FromStr;
-use strum_macros::EnumString;
+use strum_macros::{Display, EnumString};
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -45,6 +46,17 @@ impl Immediate {
     }
 }
 
+struct Signed(u16);
+
+impl fmt::LowerHex for Signed {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let val = self.0 as i16;
+        let p = if f.alternate() { "0x" } else { "" };
+        let x = format!("{}{:x}", p, val.abs());
+        f.pad_integral(val >= 0, "", &x)
+    }
+}
+
 #[derive(Debug)]
 pub enum Instruction {
     Immediate {
@@ -66,7 +78,286 @@ pub enum Instruction {
     },
 }
 
-#[derive(Clone, Copy, Debug)]
+type I = ITypeOp;
+type R = RTypeOp;
+
+impl fmt::Display for Instruction {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match &self {
+            Instruction::Immediate {
+                op,
+                rs,
+                rt,
+                imm: Immediate::Int(imm),
+            } => match op {
+                I::Cache
+                | I::Lb
+                | I::Lbu
+                | I::Ld
+                | I::Ldl
+                | I::Ldr
+                | I::Lh
+                | I::Lhu
+                | I::Ll
+                | I::Lld
+                | I::Lw
+                | I::Lwl
+                | I::Lwr
+                | I::Lwu
+                | I::Sb
+                | I::Sc
+                | I::Scd
+                | I::Sd
+                | I::Sdl
+                | I::Sdr
+                | I::Sh
+                | I::Sw
+                | I::Swl
+                | I::Swr => {
+                    write!(f, "{}\t    {}, {:#x}({})", op, rt, Signed(*imm), rs)
+                }
+                I::Addi | I::Addiu | I::Daddi | I::Daddiu | I::Slti | I::Sltiu => {
+                    write!(f, "{}\t    {}, {}, {:#x}", op, rt, rs, Signed(*imm))
+                }
+                I::Andi | I::Ori | I::Xori => write!(f, "{}\t    {}, {}, {:#x}", op, rt, rs, imm),
+                I::Lui => write!(f, "{}\t    {}, {:#x}", op, rt, imm),
+                I::Beqz | I::Bgtz | I::Bgtzl | I::Blez | I::Blezl | I::Bnez => {
+                    write!(f, "{}\t    {}, {:#x}", op, rs, Signed(*imm))
+                }
+                I::Beq | I::Beql | I::Bne | I::Bnel => {
+                    write!(f, "{}\t    {}, {}, {:#x}", op, rs, rt, Signed(*imm))
+                }
+                I::Bgez
+                | I::Bgezal
+                | I::Bgezall
+                | I::Bgezl
+                | I::Bltz
+                | I::Bltzal
+                | I::Bltzall
+                | I::Bltzl
+                | I::Teqi
+                | I::Tgei
+                | I::Tgeiu
+                | I::Tlti
+                | I::Tltiu
+                | I::Tnei => {
+                    write!(f, "{}\t    {}, {:#x}", op, rs, Signed(*imm))
+                }
+                I::Bc0f
+                | I::Bc1f
+                | I::Bc0fl
+                | I::Bc1fl
+                | I::Bc0t
+                | I::Bc1t
+                | I::Bc0tl
+                | I::Bc1tl => {
+                    write!(f, "{}\t    {:#x}", op, Signed(*imm))
+                }
+                I::Ldc1 | I::Lwc1 | I::Sdc1 | I::Swc1 => {
+                    write!(
+                        f,
+                        "{}\t    {}, {:#x}({})",
+                        op,
+                        FloatRegister::from(*rt),
+                        Signed(*imm),
+                        rs
+                    )
+                }
+            },
+            Instruction::Jump {
+                op,
+                target: Target::Address(target),
+            } => {
+                write!(f, "{}\t    {:#X?}", op, target)
+            }
+            Instruction::Register { op, rs, rt, rd, sa } => match op {
+                R::Sync => write!(f, "{}", op),
+                R::Add
+                | R::Addu
+                | R::And
+                | R::Dadd
+                | R::Daddu
+                | R::Dsub
+                | R::Dsubu
+                | R::Nor
+                | R::Or
+                | R::Slt
+                | R::Sltu
+                | R::Sub
+                | R::Subu
+                | R::Xor => {
+                    write!(f, "{}\t    {}, {}, {}", op, rd, rs, rt)
+                }
+                R::Dsll
+                | R::Dsll32
+                | R::Dsra
+                | R::Dsra32
+                | R::Dsrl
+                | R::Dsrl32
+                | R::Sll
+                | R::Sra
+                | R::Srl => {
+                    write!(f, "{}\t    {}, {}, {:#x?}", op, rd, rt, sa)
+                }
+                R::Dsllv | R::Dsrav | R::Dsrlv | R::Sllv | R::Srav | R::Srlv => {
+                    write!(f, "{}\t    {}, {}, {}", op, rd, rt, rs)
+                }
+                R::Break | R::Syscall => {
+                    write!(f, "{}", op)
+                }
+                R::Ddiv
+                | R::Ddivu
+                | R::Div
+                | R::Divu
+                | R::Dmult
+                | R::Dmultu
+                | R::Mult
+                | R::Multu
+                | R::Teq
+                | R::Tge
+                | R::Tgeu
+                | R::Tlt
+                | R::Tltu
+                | R::Tne => {
+                    write!(f, "{}\t    {}, {}", op, rs, rt)
+                }
+                R::Jalr => {
+                    if let &Register::Ra = rd {
+                        write!(f, "{}\t    {}", op, rs)
+                    } else {
+                        write!(f, "{}\t    {}, {}", op, rd, rs)
+                    }
+                }
+                R::Jr | R::Mthi | R::Mtlo => {
+                    write!(f, "{}\t    {}", op, rs)
+                }
+                R::Mfhi | R::Mflo => {
+                    write!(f, "{}\t    {}", op, rd)
+                }
+                R::Dmfc0 | R::Dmtc0 | R::Mfc0 | R::Mtc0 => {
+                    write!(f, "{}\t    {}, {}", op, rt, rd)
+                }
+                R::Cfc1 | R::Ctc1 | R::Dmfc1 | R::Dmtc1 | R::Mfc1 | R::Mtc1 => {
+                    write!(f, "{}\t    {}, {}", op, rt, FloatRegister::from(*rd))
+                }
+                R::Eret | R::Tlbp | R::Tlbr | R::Tlbwi | R::Tlbwr => {
+                    write!(f, "{}", op)
+                }
+                R::AddS | R::AddD | R::SubS | R::SubD | R::MulS | R::MulD | R::DivS | R::DivD => {
+                    let x = op.to_string().replace('_', ".");
+                    write!(
+                        f,
+                        "{}\t    {}, {}, {}",
+                        x,
+                        FloatRegister::from(*rd),
+                        FloatRegister::from(*rs),
+                        FloatRegister::from(*rt)
+                    )
+                }
+                R::AbsS
+                | R::AbsD
+                | R::CvtDS
+                | R::CvtDW
+                | R::CvtDL
+                | R::CvtLS
+                | R::CvtLD
+                | R::CvtSD
+                | R::CvtSW
+                | R::CvtSL
+                | R::CvtWD
+                | R::CvtWS
+                | R::MovS
+                | R::MovD
+                | R::NegS
+                | R::NegD
+                | R::SqrtS
+                | R::SqrtD => {
+                    let x = op.to_string().replace('_', ".");
+                    write!(
+                        f,
+                        "{}\t    {}, {}",
+                        x,
+                        FloatRegister::from(*rd),
+                        FloatRegister::from(*rs)
+                    )
+                }
+                R::CeilLS | R::CeilLD | R::CeilWS | R::CeilWD => {
+                    let x = op.to_string().replace('_', ".");
+                    write!(
+                        f,
+                        "{}    {}, {}",
+                        x,
+                        FloatRegister::from(*rd),
+                        FloatRegister::from(*rs)
+                    )
+                }
+                R::FloorLS
+                | R::FloorLD
+                | R::FloorWS
+                | R::FloorWD
+                | R::RoundLS
+                | R::RoundLD
+                | R::RoundWS
+                | R::RoundWD
+                | R::TruncLS
+                | R::TruncLD
+                | R::TruncWS
+                | R::TruncWD => {
+                    let x = op.to_string().replace('_', ".");
+                    write!(
+                        f,
+                        "{}   {}, {}",
+                        x,
+                        FloatRegister::from(*rd),
+                        FloatRegister::from(*rs)
+                    )
+                }
+                R::Cs => {
+                    if *sa == 9 {
+                        write!(
+                            f,
+                            "c.{}.s    {}, {}",
+                            FloatCond::try_from(*sa).unwrap(),
+                            FloatRegister::from(*rs),
+                            FloatRegister::from(*rt)
+                        )
+                    } else {
+                        write!(
+                            f,
+                            "c.{}.s\t    {}, {}",
+                            FloatCond::try_from(*sa).unwrap(),
+                            FloatRegister::from(*rs),
+                            FloatRegister::from(*rt)
+                        )
+                    }
+                }
+                R::Cd => {
+                    if *sa == 9 {
+                        write!(
+                            f,
+                            "c.{}.d    {}, {}",
+                            FloatCond::try_from(*sa).unwrap(),
+                            FloatRegister::from(*rs),
+                            FloatRegister::from(*rt)
+                        )
+                    } else {
+                        write!(
+                            f,
+                            "c.{}.d\t    {}, {}",
+                            FloatCond::try_from(*sa).unwrap(),
+                            FloatRegister::from(*rs),
+                            FloatRegister::from(*rt)
+                        )
+                    }
+                }
+            },
+            e => panic!("Unhandled instruction: {:?}", e),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Display)]
+#[strum(serialize_all = "snake_case")]
 pub enum Register {
     Zero,
     At,
@@ -105,6 +396,10 @@ pub enum Register {
 impl Register {
     pub fn null() -> Self {
         Register::Zero
+    }
+
+    pub fn as_num(&self) -> u32 {
+        *self as u32
     }
 }
 
@@ -198,13 +493,8 @@ impl From<FloatRegister> for Register {
     }
 }
 
-impl Register {
-    pub fn as_num(&self) -> u32 {
-        *self as u32
-    }
-}
-
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Display)]
+#[strum(serialize_all = "snake_case")]
 pub enum FloatRegister {
     Fv0,
     Fv0f,
@@ -240,10 +530,10 @@ pub enum FloatRegister {
     Fs5f,
 }
 
-impl TryFrom<i32> for FloatRegister {
+impl TryFrom<u32> for FloatRegister {
     type Error = RegParseError;
 
-    fn try_from(reg: i32) -> Result<Self, Self::Error> {
+    fn try_from(reg: u32) -> Result<Self, Self::Error> {
         match reg {
             0 => Ok(FloatRegister::Fv0),
             1 => Ok(FloatRegister::Fv0f),
@@ -324,8 +614,15 @@ impl FromStr for FloatRegister {
     }
 }
 
-#[derive(Clone, Copy, Debug, EnumString)]
+impl From<Register> for FloatRegister {
+    fn from(reg: Register) -> Self {
+        FloatRegister::try_from(reg as u32).unwrap()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Display, EnumString)]
 #[strum(ascii_case_insensitive)]
+#[strum(serialize_all = "snake_case")]
 pub enum ITypeOp {
     Addi,
     Addiu,
@@ -399,15 +696,17 @@ pub enum ITypeOp {
     Xori,
 }
 
-#[derive(Clone, Copy, Debug, EnumString)]
+#[derive(Clone, Copy, Debug, Display, EnumString)]
 #[strum(ascii_case_insensitive)]
+#[strum(serialize_all = "snake_case")]
 pub enum JTypeOp {
     J,
     Jal,
 }
 
-#[derive(Clone, Copy, Debug, EnumString)]
+#[derive(Clone, Copy, Debug, Display, EnumString)]
 #[strum(ascii_case_insensitive)]
+#[strum(serialize_all = "snake_case")]
 pub enum RTypeOp {
     AbsS,
     AbsD,
@@ -419,21 +718,35 @@ pub enum RTypeOp {
     Break,
     Cs,
     Cd,
+    #[strum(to_string = "ceil.l.s")]
     CeilLS,
+    #[strum(to_string = "ceil.l.d")]
     CeilLD,
+    #[strum(to_string = "ceil.w.s")]
     CeilWS,
+    #[strum(to_string = "ceil.w.d")]
     CeilWD,
     Cfc1,
     Ctc1,
+    #[strum(to_string = "cvt.d.s")]
     CvtDS,
+    #[strum(to_string = "cvt.d.w")]
     CvtDW,
+    #[strum(to_string = "cvt.d.l")]
     CvtDL,
+    #[strum(to_string = "cvt.l.s")]
     CvtLS,
+    #[strum(to_string = "cvt.l.d")]
     CvtLD,
+    #[strum(to_string = "cvt.s.d")]
     CvtSD,
+    #[strum(to_string = "cvt.s.w")]
     CvtSW,
+    #[strum(to_string = "cvt.s.l")]
     CvtSL,
+    #[strum(to_string = "cvt.w.s")]
     CvtWS,
+    #[strum(to_string = "cvt.w.d")]
     CvtWD,
     Dadd,
     Daddu,
@@ -461,9 +774,13 @@ pub enum RTypeOp {
     Dsub,
     Dsubu,
     Eret,
+    #[strum(to_string = "floor.l.s")]
     FloorLS,
+    #[strum(to_string = "floor.l.d")]
     FloorLD,
+    #[strum(to_string = "floor.w.s")]
     FloorWS,
+    #[strum(to_string = "floor.w.d")]
     FloorWD,
     Jalr,
     Jr,
@@ -485,9 +802,13 @@ pub enum RTypeOp {
     NegD,
     Nor,
     Or,
+    #[strum(to_string = "round.l.s")]
     RoundLS,
+    #[strum(to_string = "round.l.d")]
     RoundLD,
+    #[strum(to_string = "round.w.s")]
     RoundWS,
+    #[strum(to_string = "round.w.d")]
     RoundWD,
     Sll,
     Sllv,
@@ -515,9 +836,61 @@ pub enum RTypeOp {
     Tlt,
     Tltu,
     Tne,
+    #[strum(to_string = "trunc.l.s")]
     TruncLS,
+    #[strum(to_string = "trunc.l.d")]
     TruncLD,
+    #[strum(to_string = "trunc.w.s")]
     TruncWS,
+    #[strum(to_string = "trunc.w.d")]
     TruncWD,
     Xor,
+}
+
+#[derive(Clone, Copy, Debug, Display, EnumString)]
+#[strum(ascii_case_insensitive)]
+#[strum(serialize_all = "snake_case")]
+pub enum FloatCond {
+    F,
+    Un,
+    Eq,
+    Ueq,
+    Olt,
+    Ult,
+    Ole,
+    Ule,
+    Sf,
+    Ngle,
+    Seq,
+    Ngl,
+    Lt,
+    Nge,
+    Le,
+    Ngt,
+}
+
+impl TryFrom<u16> for FloatCond {
+    type Error = RegParseError;
+
+    fn try_from(cond: u16) -> Result<Self, Self::Error> {
+        match cond {
+            0 => Ok(FloatCond::F),
+            1 => Ok(FloatCond::Un),
+            2 => Ok(FloatCond::Eq),
+            3 => Ok(FloatCond::Ueq),
+            4 => Ok(FloatCond::Olt),
+            5 => Ok(FloatCond::Ult),
+            6 => Ok(FloatCond::Ole),
+            7 => Ok(FloatCond::Ule),
+            8 => Ok(FloatCond::Sf),
+            9 => Ok(FloatCond::Ngle),
+            10 => Ok(FloatCond::Seq),
+            11 => Ok(FloatCond::Ngl),
+            12 => Ok(FloatCond::Lt),
+            13 => Ok(FloatCond::Nge),
+            14 => Ok(FloatCond::Le),
+            15 => Ok(FloatCond::Ngt),
+            e => Err(RegParseError::RegParseError(e.to_string())),
+        }
+    }
 }
