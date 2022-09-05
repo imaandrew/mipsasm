@@ -717,7 +717,7 @@ impl<'a> Parser<'a> {
             // |    op     |   base  |   ft    |            offset             |
             // ------6----------5---------5-------------------16----------------
             //  Format:  op ft, offset(base)
-            "ldc1" | "ldc2" | "lwc1" | "lwc2" | "sdc1" | "sdc2" | "swc1" | "swc2" => {
+            "ldc1" | "lwc1" | "sdc1" | "swc1" => {
                 if args.len() != 2 {
                     return Err(ParserError::InvalidOperandCount {
                         line: inst.to_string(),
@@ -766,34 +766,6 @@ impl<'a> Parser<'a> {
                 rd: ast::Register::null(),
                 sa: 0,
             }),
-            "negu" => {
-                if args.len() != 2 {
-                    return Err(ParserError::InvalidOperandCount {
-                        line: inst.to_string(),
-                        expected: 2,
-                        found: args.len(),
-                    });
-                }
-                let rd = args
-                    .first()
-                    .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?
-                    .trim()
-                    .parse()
-                    .map_err(|_| ParserError::InvalidRegister(inst.to_string()))?;
-                let rs = args
-                    .get(1)
-                    .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?
-                    .trim()
-                    .parse()
-                    .map_err(|_| ParserError::InvalidRegister(inst.to_string()))?;
-                Ok(ast::Instruction::Register {
-                    op: op.parse()?,
-                    rd,
-                    rs,
-                    rt: ast::Register::null(),
-                    sa: 0,
-                })
-            }
             _ => match &op.to_lowercase()[..op.len() - 2] {
                 // -----------------------------------------------------------------
                 // |   COP1    |   fmt   |   ft    |   fs    |   fd    |    op     |
