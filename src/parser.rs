@@ -228,7 +228,7 @@ impl<'a> Parser<'a> {
                     op: op.parse()?,
                     rt,
                     rs: ast::Register::null(),
-                    imm: self.parse_immediate(imm, true)?,
+                    imm: self.parse_immediate(imm, false)?,
                 })
             }
             // -----------------------------------------------------------------
@@ -510,7 +510,7 @@ impl<'a> Parser<'a> {
                 if args.len() == 1 {
                     Ok(ast::Instruction::Register {
                         op: op.parse()?,
-                        rd: ast::Register::null(),
+                        rd: ast::Register::Ra,
                         rs,
                         rt: ast::Register::null(),
                         sa: 0,
@@ -705,7 +705,6 @@ impl<'a> Parser<'a> {
             // |   COPz    |CO|      0000 0000 0000 0000 000       |    op     |
             // ------6------1-------------------19-----------------------6------
             //  Format:  op
-            // TODO: Figure out what CO is
             "eret" | "tlbp" | "tlbr" | "tlbwi" | "tlbwr" => Ok(ast::Instruction::Register {
                 op: op.parse()?,
                 rs: ast::Register::null(),
