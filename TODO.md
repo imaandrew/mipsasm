@@ -1,0 +1,4 @@
+- Add COPz instruction
+- Add CP0 registers for mfc/mtc instructions
+- Implement better way to handle pseudoinstructions
+- Readd NEGU
