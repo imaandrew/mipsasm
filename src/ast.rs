@@ -351,7 +351,7 @@ impl fmt::Display for Instruction {
                     }
                 }
             },
-            e => panic!("Unhandled instruction: {:?}", e),
+            e => panic!("Invalid instruction: {:?}", e),
         }
     }
 }
