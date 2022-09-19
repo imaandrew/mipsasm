@@ -108,8 +108,10 @@ pub fn disassemble(bytes: Vec<u32>) -> Vec<ast::Instruction> {
             16 => match (rs, rt) {
                 (0, _) => ast::Instruction::Register { op: ast::RTypeOp::Mfc0, rs: R::null(), rt: R::try_from(rt).unwrap(), rd: R::try_from(rd).unwrap(), sa: 0},
                 (1, _) => ast::Instruction::Register { op: ast::RTypeOp::Dmfc0, rs: R::null(), rt: R::try_from(rt).unwrap(), rd: R::try_from(rd).unwrap(), sa: 0},
+                (2, _) => ast::Instruction::Register { op: ast::RTypeOp::Cfc0, rs: R::null(), rt: R::try_from(rt).unwrap(), rd: R::try_from(rd).unwrap(), sa: 0},
                 (4, _) => ast::Instruction::Register { op: ast::RTypeOp::Mtc0, rs: R::null(), rt: R::try_from(rt).unwrap(), rd: R::try_from(rd).unwrap(), sa: 0},
                 (5, _) => ast::Instruction::Register { op: ast::RTypeOp::Dmtc0, rs: R::null(), rt: R::try_from(rt).unwrap(), rd: R::try_from(rd).unwrap(), sa: 0},
+                (6, _) => ast::Instruction::Register { op: ast::RTypeOp::Ctc0, rs: R::null(), rt: R::try_from(rt).unwrap(), rd: R::try_from(rd).unwrap(), sa: 0},
                 (8, 0) => ast::Instruction::Immediate { op: ast::ITypeOp::Bc0f, rs: R::null(), rt: R::null(), imm: ast::Immediate::Int(imm as u16) },
                 (8, 1) => ast::Instruction::Immediate { op: ast::ITypeOp::Bc0t, rs: R::null(), rt: R::null(), imm: ast::Immediate::Int(imm as u16) },
                 (8, 2) => ast::Instruction::Immediate { op: ast::ITypeOp::Bc0fl, rs: R::null(), rt: R::null(), imm: ast::Immediate::Int(imm as u16) },

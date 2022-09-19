@@ -640,7 +640,7 @@ impl<'a> Parser<'a> {
             // |   COPz    |   op    |   rt    |   rd    |    0000 0000 000    |
             // ------6----------5---------5---------5--------------11-----------
             //  Format:  op rt, rd
-            "dmfc0" | "dmtc0" | "mfc0" | "mtc0" => {
+            "cfc0" | "ctc0" | "dmfc0" | "dmtc0" | "mfc0" | "mtc0" => {
                 if args.len() != 2 {
                     return Err(ParserError::InvalidOperandCount {
                         line: inst.to_string(),
@@ -658,13 +658,13 @@ impl<'a> Parser<'a> {
                     .get(1)
                     .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?
                     .trim()
-                    .parse::<ast::Register>()
+                    .parse::<ast::Cop0Register>()
                     .map_err(|_| ParserError::InvalidRegister(inst.to_string()))?;
                 Ok(ast::Instruction::Register {
                     op: op.parse()?,
                     rs: ast::Register::null(),
                     rt,
-                    rd,
+                    rd: rd.into(),
                     sa: 0,
                 })
             }
@@ -696,7 +696,7 @@ impl<'a> Parser<'a> {
                     op: op.parse()?,
                     rs: ast::Register::null(),
                     rt,
-                    rd: ast::Register::from(rd),
+                    rd: rd.into(),
                     sa: 0,
                 })
             }

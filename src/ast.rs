@@ -233,8 +233,8 @@ impl fmt::Display for Instruction {
                 R::Mfhi | R::Mflo => {
                     write!(f, "{}\t    {}", op, rd)
                 }
-                R::Dmfc0 | R::Dmtc0 | R::Mfc0 | R::Mtc0 => {
-                    write!(f, "{}\t    {}, {}", op, rt, rd)
+                R::Cfc0 | R::Ctc0 | R::Dmfc0 | R::Dmtc0 | R::Mfc0 | R::Mtc0 => {
+                    write!(f, "{}\t    {}, {}", op, rt, Cop0Register::from(*rd))
                 }
                 R::Cfc1 | R::Ctc1 | R::Dmfc1 | R::Dmtc1 | R::Mfc1 | R::Mtc1 => {
                     write!(f, "{}\t    {}, {}", op, rt, FloatRegister::from(*rd))
@@ -359,7 +359,7 @@ impl fmt::Display for Instruction {
 #[strum(ascii_case_insensitive)]
 #[strum(serialize_all = "snake_case")]
 pub enum Register {
-    #[strum(serialize="r0", serialize="zero")]
+    #[strum(serialize = "r0", serialize = "zero")]
     Zero,
     At,
     V0,
@@ -452,73 +452,79 @@ impl From<FloatRegister> for Register {
     }
 }
 
+impl From<Cop0Register> for Register {
+    fn from(reg: Cop0Register) -> Self {
+        Register::try_from(reg as u32).unwrap()
+    }
+}
+
 #[derive(Clone, Copy, Debug, Display, EnumString)]
 #[strum(ascii_case_insensitive)]
 #[strum(serialize_all = "snake_case")]
 pub enum FloatRegister {
-    #[strum(serialize="f0",serialize="fv0")]
+    #[strum(serialize = "f0", serialize = "fv0")]
     Fv0,
-    #[strum(serialize="f1",serialize="fv0f")]
+    #[strum(serialize = "f1", serialize = "fv0f")]
     Fv0f,
-    #[strum(serialize="f2",serialize="fv1")]
+    #[strum(serialize = "f2", serialize = "fv1")]
     Fv1,
-    #[strum(serialize="f3",serialize="fv1f")]
+    #[strum(serialize = "f3", serialize = "fv1f")]
     Fv1f,
-    #[strum(serialize="f4",serialize="ft0")]
+    #[strum(serialize = "f4", serialize = "ft0")]
     Ft0,
-    #[strum(serialize="f5",serialize="ft0f")]
+    #[strum(serialize = "f5", serialize = "ft0f")]
     Ft0f,
-    #[strum(serialize="f6",serialize="ft1")]
+    #[strum(serialize = "f6", serialize = "ft1")]
     Ft1,
-    #[strum(serialize="f7",serialize="ft1f")]
+    #[strum(serialize = "f7", serialize = "ft1f")]
     Ft1f,
-    #[strum(serialize="f8",serialize="ft2")]
+    #[strum(serialize = "f8", serialize = "ft2")]
     Ft2,
-    #[strum(serialize="f9",serialize="ft2f")]
+    #[strum(serialize = "f9", serialize = "ft2f")]
     Ft2f,
-    #[strum(serialize="f10",serialize="ft3")]
+    #[strum(serialize = "f10", serialize = "ft3")]
     Ft3,
-    #[strum(serialize="f11",serialize="ft3f")]
+    #[strum(serialize = "f11", serialize = "ft3f")]
     Ft3f,
-    #[strum(serialize="f12",serialize="fa0")]
+    #[strum(serialize = "f12", serialize = "fa0")]
     Fa0,
-    #[strum(serialize="f13",serialize="fa0f")]
+    #[strum(serialize = "f13", serialize = "fa0f")]
     Fa0f,
-    #[strum(serialize="f14",serialize="fa1")]
+    #[strum(serialize = "f14", serialize = "fa1")]
     Fa1,
-    #[strum(serialize="f15",serialize="fa1f")]
+    #[strum(serialize = "f15", serialize = "fa1f")]
     Fa1f,
-    #[strum(serialize="f16",serialize="ft4")]
+    #[strum(serialize = "f16", serialize = "ft4")]
     Ft4,
-    #[strum(serialize="f17",serialize="ft4f")]
+    #[strum(serialize = "f17", serialize = "ft4f")]
     Ft4f,
-    #[strum(serialize="f18",serialize="ft5")]
+    #[strum(serialize = "f18", serialize = "ft5")]
     Ft5,
-    #[strum(serialize="f18",serialize="ft5f")]
+    #[strum(serialize = "f18", serialize = "ft5f")]
     Ft5f,
-    #[strum(serialize="f20",serialize="fs0")]
+    #[strum(serialize = "f20", serialize = "fs0")]
     Fs0,
-    #[strum(serialize="f21",serialize="fs0f")]
+    #[strum(serialize = "f21", serialize = "fs0f")]
     Fs0f,
-    #[strum(serialize="f22",serialize="fs1")]
+    #[strum(serialize = "f22", serialize = "fs1")]
     Fs1,
-    #[strum(serialize="f23",serialize="fs1f")]
+    #[strum(serialize = "f23", serialize = "fs1f")]
     Fs1f,
-    #[strum(serialize="f24",serialize="fs2")]
+    #[strum(serialize = "f24", serialize = "fs2")]
     Fs2,
-    #[strum(serialize="f25",serialize="fs2f")]
+    #[strum(serialize = "f25", serialize = "fs2f")]
     Fs2f,
-    #[strum(serialize="f26",serialize="fs3")]
+    #[strum(serialize = "f26", serialize = "fs3")]
     Fs3,
-    #[strum(serialize="f27",serialize="fs3f")]
+    #[strum(serialize = "f27", serialize = "fs3f")]
     Fs3f,
-    #[strum(serialize="f28",serialize="fs4")]
+    #[strum(serialize = "f28", serialize = "fs4")]
     Fs4,
-    #[strum(serialize="f29",serialize="fs4f")]
+    #[strum(serialize = "f29", serialize = "fs4f")]
     Fs4f,
-    #[strum(serialize="f30",serialize="fs5")]
+    #[strum(serialize = "f30", serialize = "fs5")]
     Fs5,
-    #[strum(serialize="f31",serialize="fs5f")]
+    #[strum(serialize = "f31", serialize = "fs5f")]
     Fs5f,
 }
 
@@ -599,6 +605,47 @@ pub enum Cop0Register {
     TagLo,
     TagHi,
     ErrorEPC,
+}
+
+impl TryFrom<u32> for Cop0Register {
+    type Error = RegParseError;
+
+    fn try_from(reg: u32) -> Result<Self, Self::Error> {
+        match reg {
+            0 => Ok(Cop0Register::Index),
+            1 => Ok(Cop0Register::Random),
+            2 => Ok(Cop0Register::EntryLo0),
+            3 => Ok(Cop0Register::EntryLo1),
+            4 => Ok(Cop0Register::Context),
+            5 => Ok(Cop0Register::PageMask),
+            6 => Ok(Cop0Register::Wired),
+            8 => Ok(Cop0Register::BadVAddr),
+            9 => Ok(Cop0Register::Count),
+            10 => Ok(Cop0Register::EntryHi),
+            11 => Ok(Cop0Register::Compare),
+            12 => Ok(Cop0Register::Status),
+            13 => Ok(Cop0Register::Cause),
+            14 => Ok(Cop0Register::Epc),
+            15 => Ok(Cop0Register::PrId),
+            16 => Ok(Cop0Register::Config),
+            17 => Ok(Cop0Register::LLAddr),
+            18 => Ok(Cop0Register::WatchLo),
+            19 => Ok(Cop0Register::WatchHi),
+            20 => Ok(Cop0Register::XContext),
+            26 => Ok(Cop0Register::ParityError),
+            27 => Ok(Cop0Register::CacheError),
+            28 => Ok(Cop0Register::TagLo),
+            29 => Ok(Cop0Register::TagHi),
+            30 => Ok(Cop0Register::ErrorEPC),
+            e => Err(RegParseError::RegParseError(e.to_string())),
+        }
+    }
+}
+
+impl From<Register> for Cop0Register {
+    fn from(reg: Register) -> Self {
+        Cop0Register::try_from(reg as u32).unwrap()
+    }
 }
 
 #[derive(Clone, Copy, Debug, Display, EnumString)]
@@ -707,7 +754,9 @@ pub enum RTypeOp {
     CeilWS,
     #[strum(to_string = "ceil.w.d")]
     CeilWD,
+    Cfc0,
     Cfc1,
+    Ctc0,
     Ctc1,
     #[strum(to_string = "cvt.d.s")]
     CvtDS,
