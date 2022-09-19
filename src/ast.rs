@@ -1,6 +1,5 @@
 use std::convert::{From, TryFrom};
 use std::fmt;
-use std::str::FromStr;
 use strum_macros::{Display, EnumString};
 use thiserror::Error;
 
@@ -356,9 +355,11 @@ impl fmt::Display for Instruction {
     }
 }
 
-#[derive(Clone, Copy, Debug, Display)]
+#[derive(Clone, Copy, Debug, Display, EnumString)]
+#[strum(ascii_case_insensitive)]
 #[strum(serialize_all = "snake_case")]
 pub enum Register {
+    #[strum(serialize="r0", serialize="zero")]
     Zero,
     At,
     V0,
@@ -445,88 +446,79 @@ impl TryFrom<u32> for Register {
     }
 }
 
-impl FromStr for Register {
-    type Err = RegParseError;
-
-    fn from_str(reg: &str) -> Result<Self, Self::Err> {
-        match reg.trim_start_matches('$').to_lowercase().as_str() {
-            "zero" | "r0" => Ok(Register::Zero),
-            "at" => Ok(Register::At),
-            "v0" => Ok(Register::V0),
-            "v1" => Ok(Register::V1),
-            "a0" => Ok(Register::A0),
-            "a1" => Ok(Register::A1),
-            "a2" => Ok(Register::A2),
-            "a3" => Ok(Register::A3),
-            "t0" => Ok(Register::T0),
-            "t1" => Ok(Register::T1),
-            "t2" => Ok(Register::T2),
-            "t3" => Ok(Register::T3),
-            "t4" => Ok(Register::T4),
-            "t5" => Ok(Register::T5),
-            "t6" => Ok(Register::T6),
-            "t7" => Ok(Register::T7),
-            "s0" => Ok(Register::S0),
-            "s1" => Ok(Register::S1),
-            "s2" => Ok(Register::S2),
-            "s3" => Ok(Register::S3),
-            "s4" => Ok(Register::S4),
-            "s5" => Ok(Register::S5),
-            "s6" => Ok(Register::S6),
-            "s7" => Ok(Register::S7),
-            "t8" => Ok(Register::T8),
-            "t9" => Ok(Register::T9),
-            "k0" => Ok(Register::K0),
-            "k1" => Ok(Register::K1),
-            "gp" => Ok(Register::Gp),
-            "sp" => Ok(Register::Sp),
-            "fp" => Ok(Register::Fp),
-            "ra" => Ok(Register::Ra),
-            e => Err(RegParseError::RegParseError(e.to_string())),
-        }
-    }
-}
-
 impl From<FloatRegister> for Register {
     fn from(reg: FloatRegister) -> Self {
         Register::try_from(reg as u32).unwrap()
     }
 }
 
-#[derive(Clone, Copy, Debug, Display)]
+#[derive(Clone, Copy, Debug, Display, EnumString)]
+#[strum(ascii_case_insensitive)]
 #[strum(serialize_all = "snake_case")]
 pub enum FloatRegister {
+    #[strum(serialize="f0",serialize="fv0")]
     Fv0,
+    #[strum(serialize="f1",serialize="fv0f")]
     Fv0f,
+    #[strum(serialize="f2",serialize="fv1")]
     Fv1,
+    #[strum(serialize="f3",serialize="fv1f")]
     Fv1f,
+    #[strum(serialize="f4",serialize="ft0")]
     Ft0,
+    #[strum(serialize="f5",serialize="ft0f")]
     Ft0f,
+    #[strum(serialize="f6",serialize="ft1")]
     Ft1,
+    #[strum(serialize="f7",serialize="ft1f")]
     Ft1f,
+    #[strum(serialize="f8",serialize="ft2")]
     Ft2,
+    #[strum(serialize="f9",serialize="ft2f")]
     Ft2f,
+    #[strum(serialize="f10",serialize="ft3")]
     Ft3,
+    #[strum(serialize="f11",serialize="ft3f")]
     Ft3f,
+    #[strum(serialize="f12",serialize="fa0")]
     Fa0,
+    #[strum(serialize="f13",serialize="fa0f")]
     Fa0f,
+    #[strum(serialize="f14",serialize="fa1")]
     Fa1,
+    #[strum(serialize="f15",serialize="fa1f")]
     Fa1f,
+    #[strum(serialize="f16",serialize="ft4")]
     Ft4,
+    #[strum(serialize="f17",serialize="ft4f")]
     Ft4f,
+    #[strum(serialize="f18",serialize="ft5")]
     Ft5,
+    #[strum(serialize="f18",serialize="ft5f")]
     Ft5f,
+    #[strum(serialize="f20",serialize="fs0")]
     Fs0,
+    #[strum(serialize="f21",serialize="fs0f")]
     Fs0f,
+    #[strum(serialize="f22",serialize="fs1")]
     Fs1,
+    #[strum(serialize="f23",serialize="fs1f")]
     Fs1f,
+    #[strum(serialize="f24",serialize="fs2")]
     Fs2,
+    #[strum(serialize="f25",serialize="fs2f")]
     Fs2f,
+    #[strum(serialize="f26",serialize="fs3")]
     Fs3,
+    #[strum(serialize="f27",serialize="fs3f")]
     Fs3f,
+    #[strum(serialize="f28",serialize="fs4")]
     Fs4,
+    #[strum(serialize="f29",serialize="fs4f")]
     Fs4f,
+    #[strum(serialize="f30",serialize="fs5")]
     Fs5,
+    #[strum(serialize="f31",serialize="fs5f")]
     Fs5f,
 }
 
@@ -572,52 +564,41 @@ impl TryFrom<u32> for FloatRegister {
     }
 }
 
-impl FromStr for FloatRegister {
-    type Err = RegParseError;
-
-    fn from_str(reg: &str) -> Result<Self, Self::Err> {
-        match reg.trim_start_matches('$').to_lowercase().as_str() {
-            "f0" | "fv0" => Ok(FloatRegister::Fv0),
-            "f1" | "fv0f" => Ok(FloatRegister::Fv0f),
-            "f2" | "fv1" => Ok(FloatRegister::Fv1),
-            "f3" | "fv1f" => Ok(FloatRegister::Fv1f),
-            "f4" | "ft0" => Ok(FloatRegister::Ft0),
-            "f5" | "ft0f" => Ok(FloatRegister::Ft0f),
-            "f6" | "ft1" => Ok(FloatRegister::Ft1),
-            "f7" | "ft1f" => Ok(FloatRegister::Ft1f),
-            "f8" | "ft2" => Ok(FloatRegister::Ft2),
-            "f9" | "ft2f" => Ok(FloatRegister::Ft2f),
-            "f10" | "ft3" => Ok(FloatRegister::Ft3),
-            "f11" | "ft3f" => Ok(FloatRegister::Ft3f),
-            "f12" | "fa0" => Ok(FloatRegister::Fa0),
-            "f13" | "fa0f" => Ok(FloatRegister::Fa0f),
-            "f14" | "fa1" => Ok(FloatRegister::Fa1),
-            "f15" | "fa1f" => Ok(FloatRegister::Fa1f),
-            "f16" | "ft4" => Ok(FloatRegister::Ft4),
-            "f17" | "ft4f" => Ok(FloatRegister::Ft4f),
-            "f18" | "ft5" => Ok(FloatRegister::Ft5),
-            "f19" | "ft5f" => Ok(FloatRegister::Ft5f),
-            "f20" | "fs0" => Ok(FloatRegister::Fs0),
-            "f21" | "fs0f" => Ok(FloatRegister::Fs0f),
-            "f22" | "fs1" => Ok(FloatRegister::Fs1),
-            "f23" | "fs1f" => Ok(FloatRegister::Fs1f),
-            "f24" | "fs2" => Ok(FloatRegister::Fs2),
-            "f25" | "fs2f" => Ok(FloatRegister::Fs2f),
-            "f26" | "fs3" => Ok(FloatRegister::Fs3),
-            "f27" | "fs3f" => Ok(FloatRegister::Fs3f),
-            "f28" | "fs4" => Ok(FloatRegister::Fs4),
-            "f29" | "fs4f" => Ok(FloatRegister::Fs4f),
-            "f30" | "fs5" => Ok(FloatRegister::Fs5),
-            "f31" | "fs5f" => Ok(FloatRegister::Fs5f),
-            e => Err(RegParseError::RegParseError(e.to_string())),
-        }
-    }
-}
-
 impl From<Register> for FloatRegister {
     fn from(reg: Register) -> Self {
         FloatRegister::try_from(reg as u32).unwrap()
     }
+}
+
+#[derive(Clone, Copy, Debug, Display, EnumString)]
+#[strum(ascii_case_insensitive)]
+#[strum(serialize_all = "snake_case")]
+pub enum Cop0Register {
+    Index,
+    Random,
+    EntryLo0,
+    EntryLo1,
+    Context,
+    PageMask,
+    Wired,
+    BadVAddr = 8,
+    Count,
+    EntryHi,
+    Compare,
+    Status,
+    Cause,
+    Epc,
+    PrId,
+    Config,
+    LLAddr,
+    WatchLo,
+    WatchHi,
+    XContext,
+    ParityError = 26,
+    CacheError,
+    TagLo,
+    TagHi,
+    ErrorEPC,
 }
 
 #[derive(Clone, Copy, Debug, Display, EnumString)]
