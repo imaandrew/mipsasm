@@ -114,18 +114,18 @@ impl fmt::Display for Instruction {
                 | I::Sw
                 | I::Swl
                 | I::Swr => {
-                    write!(f, "{}\t    {}, {:#x}({})", op, rt, Signed(*imm), rs)
+                    write!(f, "{}\t    ${}, {:#x}(${})", op, rt, Signed(*imm), rs)
                 }
                 I::Addi | I::Addiu | I::Daddi | I::Daddiu | I::Slti | I::Sltiu => {
-                    write!(f, "{}\t    {}, {}, {:#x}", op, rt, rs, Signed(*imm))
+                    write!(f, "{}\t    ${}, ${}, {:#x}", op, rt, rs, Signed(*imm))
                 }
-                I::Andi | I::Ori | I::Xori => write!(f, "{}\t    {}, {}, {:#x}", op, rt, rs, imm),
-                I::Lui => write!(f, "{}\t    {}, {:#x}", op, rt, imm),
+                I::Andi | I::Ori | I::Xori => write!(f, "{}\t    ${}, ${}, {:#x}", op, rt, rs, imm),
+                I::Lui => write!(f, "{}\t    ${}, {:#x}", op, rt, imm),
                 I::Beqz | I::Bgtz | I::Bgtzl | I::Blez | I::Blezl | I::Bnez => {
-                    write!(f, "{}\t    {}, {:#x}", op, rs, Signed(*imm))
+                    write!(f, "{}\t    ${}, {:#x}", op, rs, Signed(*imm))
                 }
                 I::Beq | I::Beql | I::Bne | I::Bnel => {
-                    write!(f, "{}\t    {}, {}, {:#x}", op, rs, rt, Signed(*imm))
+                    write!(f, "{}\t    ${}, ${}, {:#x}", op, rs, rt, Signed(*imm))
                 }
                 I::Bgez
                 | I::Bgezal
@@ -141,7 +141,7 @@ impl fmt::Display for Instruction {
                 | I::Tlti
                 | I::Tltiu
                 | I::Tnei => {
-                    write!(f, "{}\t    {}, {:#x}", op, rs, Signed(*imm))
+                    write!(f, "{}\t    ${}, {:#x}", op, rs, Signed(*imm))
                 }
                 I::Bc0f
                 | I::Bc1f
@@ -156,7 +156,7 @@ impl fmt::Display for Instruction {
                 I::Ldc1 | I::Lwc1 | I::Sdc1 | I::Swc1 => {
                     write!(
                         f,
-                        "{}\t    {}, {:#x}({})",
+                        "{}\t    ${}, {:#x}(${})",
                         op,
                         FloatRegister::from(*rt),
                         Signed(*imm),
@@ -186,7 +186,7 @@ impl fmt::Display for Instruction {
                 | R::Sub
                 | R::Subu
                 | R::Xor => {
-                    write!(f, "{}\t    {}, {}, {}", op, rd, rs, rt)
+                    write!(f, "{}\t    ${}, ${}, ${}", op, rd, rs, rt)
                 }
                 R::Dsll
                 | R::Dsll32
@@ -197,10 +197,10 @@ impl fmt::Display for Instruction {
                 | R::Sll
                 | R::Sra
                 | R::Srl => {
-                    write!(f, "{}\t    {}, {}, {:#x?}", op, rd, rt, sa)
+                    write!(f, "{}\t    ${}, ${}, {:#x?}", op, rd, rt, sa)
                 }
                 R::Dsllv | R::Dsrav | R::Dsrlv | R::Sllv | R::Srav | R::Srlv => {
-                    write!(f, "{}\t    {}, {}, {}", op, rd, rt, rs)
+                    write!(f, "{}\t    ${}, ${}, ${}", op, rd, rt, rs)
                 }
                 R::Break | R::Syscall => {
                     write!(f, "{}", op)
@@ -219,26 +219,26 @@ impl fmt::Display for Instruction {
                 | R::Tlt
                 | R::Tltu
                 | R::Tne => {
-                    write!(f, "{}\t    {}, {}", op, rs, rt)
+                    write!(f, "{}\t    ${}, ${}", op, rs, rt)
                 }
                 R::Jalr => {
                     if let &Register::Ra = rd {
-                        write!(f, "{}\t    {}", op, rs)
+                        write!(f, "{}\t    ${}", op, rs)
                     } else {
-                        write!(f, "{}\t    {}, {}", op, rd, rs)
+                        write!(f, "{}\t    ${}, ${}", op, rd, rs)
                     }
                 }
                 R::Jr | R::Mthi | R::Mtlo => {
-                    write!(f, "{}\t    {}", op, rs)
+                    write!(f, "{}\t    ${}", op, rs)
                 }
                 R::Mfhi | R::Mflo => {
-                    write!(f, "{}\t    {}", op, rd)
+                    write!(f, "{}\t    ${}", op, rd)
                 }
                 R::Cfc0 | R::Ctc0 | R::Dmfc0 | R::Dmtc0 | R::Mfc0 | R::Mtc0 => {
-                    write!(f, "{}\t    {}, {}", op, rt, Cop0Register::from(*rd))
+                    write!(f, "{}\t    ${}, {}", op, rt, Cop0Register::from(*rd))
                 }
                 R::Cfc1 | R::Ctc1 | R::Dmfc1 | R::Dmtc1 | R::Mfc1 | R::Mtc1 => {
-                    write!(f, "{}\t    {}, {}", op, rt, FloatRegister::from(*rd))
+                    write!(f, "{}\t    ${}, ${}", op, rt, FloatRegister::from(*rd))
                 }
                 R::Eret | R::Tlbp | R::Tlbr | R::Tlbwi | R::Tlbwr => {
                     write!(f, "{}", op)
@@ -247,7 +247,7 @@ impl fmt::Display for Instruction {
                     let x = op.to_string().replace('_', ".");
                     write!(
                         f,
-                        "{}\t    {}, {}, {}",
+                        "{}\t    ${}, ${}, ${}",
                         x,
                         FloatRegister::from(*rd),
                         FloatRegister::from(*rs),
@@ -275,7 +275,7 @@ impl fmt::Display for Instruction {
                     let x = op.to_string().replace('_', ".");
                     write!(
                         f,
-                        "{}\t    {}, {}",
+                        "{}\t    ${}, ${}",
                         x,
                         FloatRegister::from(*rd),
                         FloatRegister::from(*rs)
@@ -285,7 +285,7 @@ impl fmt::Display for Instruction {
                     let x = op.to_string().replace('_', ".");
                     write!(
                         f,
-                        "{}    {}, {}",
+                        "{}    ${}, ${}",
                         x,
                         FloatRegister::from(*rd),
                         FloatRegister::from(*rs)
@@ -306,7 +306,7 @@ impl fmt::Display for Instruction {
                     let x = op.to_string().replace('_', ".");
                     write!(
                         f,
-                        "{}   {}, {}",
+                        "{}   ${}, ${}",
                         x,
                         FloatRegister::from(*rd),
                         FloatRegister::from(*rs)
@@ -316,7 +316,7 @@ impl fmt::Display for Instruction {
                     if *sa == 9 {
                         write!(
                             f,
-                            "c.{}.s    {}, {}",
+                            "c.{}.s    ${}, ${}",
                             FloatCond::try_from(*sa).unwrap(),
                             FloatRegister::from(*rs),
                             FloatRegister::from(*rt)
@@ -324,7 +324,7 @@ impl fmt::Display for Instruction {
                     } else {
                         write!(
                             f,
-                            "c.{}.s\t    {}, {}",
+                            "c.{}.s\t    ${}, ${}",
                             FloatCond::try_from(*sa).unwrap(),
                             FloatRegister::from(*rs),
                             FloatRegister::from(*rt)
@@ -335,7 +335,7 @@ impl fmt::Display for Instruction {
                     if *sa == 9 {
                         write!(
                             f,
-                            "c.{}.d    {}, {}",
+                            "c.{}.d    ${}, ${}",
                             FloatCond::try_from(*sa).unwrap(),
                             FloatRegister::from(*rs),
                             FloatRegister::from(*rt)
@@ -343,7 +343,7 @@ impl fmt::Display for Instruction {
                     } else {
                         write!(
                             f,
-                            "c.{}.d\t    {}, {}",
+                            "c.{}.d\t    ${}, ${}",
                             FloatCond::try_from(*sa).unwrap(),
                             FloatRegister::from(*rs),
                             FloatRegister::from(*rt)
