@@ -125,8 +125,7 @@ impl<'a> Parser<'a> {
                 } else {
                     args.first()
                         .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?
-                        .trim()
-                        .parse::<ast::Register>()
+                        .parse()
                         .unwrap()
                 };
                 let x = args
@@ -146,8 +145,7 @@ impl<'a> Parser<'a> {
                         op: op.parse()?,
                         rs: base,
                         rt,
-                        imm: self
-                            .parse_immediate(x.as_str()[..x.as_str().len() - 1].trim(), true)?,
+                        imm: self.parse_immediate(&x.as_str()[..x.as_str().len() - 1], true)?,
                     })
                 } else {
                     Ok(ast::Instruction::Immediate {
@@ -173,19 +171,16 @@ impl<'a> Parser<'a> {
                 let rt = args
                     .first()
                     .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?
-                    .trim()
-                    .parse::<ast::Register>()
+                    .parse()
                     .map_err(|_| ParserError::InvalidRegister(inst.to_string()))?;
                 let rs = args
                     .get(1)
                     .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?
-                    .trim()
                     .parse()
                     .map_err(|_| ParserError::InvalidRegister(inst.to_string()))?;
                 let imm = args
                     .get(2)
-                    .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?
-                    .trim();
+                    .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?;
                 if op == "andi" || op == "ori" || op == "xori" {
                     Ok(ast::Instruction::Immediate {
                         op: op.parse()?,
@@ -217,13 +212,11 @@ impl<'a> Parser<'a> {
                 let rt = args
                     .first()
                     .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?
-                    .trim()
-                    .parse::<ast::Register>()
+                    .parse()
                     .map_err(|_| ParserError::InvalidRegister(inst.to_string()))?;
                 let imm = args
                     .get(1)
-                    .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?
-                    .trim();
+                    .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?;
                 Ok(ast::Instruction::Immediate {
                     op: op.parse()?,
                     rt,
@@ -246,13 +239,11 @@ impl<'a> Parser<'a> {
                 let rs = args
                     .first()
                     .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?
-                    .trim()
                     .parse()
                     .map_err(|_| ParserError::InvalidRegister(inst.to_string()))?;
                 let imm = args
                     .get(1)
-                    .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?
-                    .trim();
+                    .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?;
                 Ok(ast::Instruction::Immediate {
                     op: op.parse()?,
                     rt: ast::Register::null(),
@@ -275,19 +266,16 @@ impl<'a> Parser<'a> {
                 let rs = args
                     .first()
                     .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?
-                    .trim()
                     .parse()
                     .map_err(|_| ParserError::InvalidRegister(inst.to_string()))?;
                 let rt = args
                     .get(1)
                     .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?
-                    .trim()
-                    .parse::<ast::Register>()
+                    .parse()
                     .map_err(|_| ParserError::InvalidRegister(inst.to_string()))?;
                 let imm = args
                     .get(2)
-                    .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?
-                    .trim();
+                    .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?;
                 Ok(ast::Instruction::Immediate {
                     op: op.parse()?,
                     rt,
@@ -343,19 +331,16 @@ impl<'a> Parser<'a> {
                 let rd = args
                     .first()
                     .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?
-                    .trim()
                     .parse()
                     .map_err(|_| ParserError::InvalidRegister(inst.to_string()))?;
                 let rs = args
                     .get(1)
                     .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?
-                    .trim()
                     .parse()
                     .map_err(|_| ParserError::InvalidRegister(inst.to_string()))?;
                 let rt = args
                     .get(2)
                     .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?
-                    .trim()
                     .parse()
                     .map_err(|_| ParserError::InvalidRegister(inst.to_string()))?;
                 Ok(ast::Instruction::Register {
@@ -381,13 +366,11 @@ impl<'a> Parser<'a> {
                 let rd = args
                     .first()
                     .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?
-                    .trim()
                     .parse()
                     .map_err(|_| ParserError::InvalidRegister(inst.to_string()))?;
                 let rt = args
                     .get(1)
                     .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?
-                    .trim()
                     .parse()
                     .map_err(|_| ParserError::InvalidRegister(inst.to_string()))?;
                 let sa = args
@@ -422,19 +405,16 @@ impl<'a> Parser<'a> {
                 let rd = args
                     .first()
                     .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?
-                    .trim()
                     .parse()
                     .map_err(|_| ParserError::InvalidRegister(inst.to_string()))?;
                 let rt = args
                     .get(1)
                     .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?
-                    .trim()
                     .parse()
                     .map_err(|_| ParserError::InvalidRegister(inst.to_string()))?;
                 let rs = args
                     .get(2)
                     .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?
-                    .trim()
                     .parse()
                     .map_err(|_| ParserError::InvalidRegister(inst.to_string()))?;
                 Ok(ast::Instruction::Register {
@@ -472,13 +452,11 @@ impl<'a> Parser<'a> {
                 let rs = args
                     .first()
                     .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?
-                    .trim()
                     .parse()
                     .map_err(|_| ParserError::InvalidRegister(inst.to_string()))?;
                 let rt = args
                     .get(1)
                     .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?
-                    .trim()
                     .parse()
                     .map_err(|_| ParserError::InvalidRegister(inst.to_string()))?;
                 Ok(ast::Instruction::Register {
@@ -504,7 +482,6 @@ impl<'a> Parser<'a> {
                 let rs = args
                     .first()
                     .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?
-                    .trim()
                     .parse()
                     .map_err(|_| ParserError::InvalidRegister(inst.to_string()))?;
                 if args.len() == 1 {
@@ -519,7 +496,6 @@ impl<'a> Parser<'a> {
                     let rd = args
                         .get(1)
                         .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?
-                        .trim()
                         .parse()
                         .map_err(|_| ParserError::InvalidRegister(inst.to_string()))?;
                     Ok(ast::Instruction::Register {
@@ -546,7 +522,6 @@ impl<'a> Parser<'a> {
                 let rs = args
                     .first()
                     .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?
-                    .trim()
                     .parse()
                     .map_err(|_| ParserError::InvalidRegister(inst.to_string()))?;
                 Ok(ast::Instruction::Register {
@@ -572,7 +547,6 @@ impl<'a> Parser<'a> {
                 let rd = args
                     .first()
                     .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?
-                    .trim()
                     .parse()
                     .map_err(|_| ParserError::InvalidRegister(inst.to_string()))?;
                 Ok(ast::Instruction::Register {
@@ -599,13 +573,11 @@ impl<'a> Parser<'a> {
                 let rs = args
                     .first()
                     .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?
-                    .trim()
                     .parse()
                     .map_err(|_| ParserError::InvalidRegister(inst.to_string()))?;
                 let imm = args
                     .get(1)
-                    .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?
-                    .trim();
+                    .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?;
                 Ok(ast::Instruction::Immediate {
                     op: op.parse()?,
                     rs,
@@ -627,8 +599,7 @@ impl<'a> Parser<'a> {
                 }
                 let offset = args
                     .first()
-                    .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?
-                    .trim();
+                    .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?;
                 Ok(ast::Instruction::Immediate {
                     op: op.parse()?,
                     rs: ast::Register::null(),
@@ -651,13 +622,11 @@ impl<'a> Parser<'a> {
                 let rt = args
                     .first()
                     .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?
-                    .trim()
-                    .parse::<ast::Register>()
+                    .parse()
                     .map_err(|_| ParserError::InvalidRegister(inst.to_string()))?;
                 let rd = args
                     .get(1)
                     .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?
-                    .trim()
                     .parse::<ast::Cop0Register>()
                     .map_err(|_| ParserError::InvalidRegister(inst.to_string()))?;
                 Ok(ast::Instruction::Register {
@@ -683,13 +652,11 @@ impl<'a> Parser<'a> {
                 let rt = args
                     .first()
                     .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?
-                    .trim()
-                    .parse::<ast::Register>()
+                    .parse()
                     .map_err(|_| ParserError::InvalidRegister(inst.to_string()))?;
                 let rd = args
                     .get(1)
                     .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?
-                    .trim()
                     .parse::<ast::FloatRegister>()
                     .map_err(|_| ParserError::InvalidRegister(inst.to_string()))?;
                 Ok(ast::Instruction::Register {
@@ -726,7 +693,6 @@ impl<'a> Parser<'a> {
                 let ft = args
                     .first()
                     .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?
-                    .trim()
                     .parse::<ast::FloatRegister>()
                     .map_err(|_| ParserError::InvalidRegister(inst.to_string()))?;
                 let x = args
@@ -746,7 +712,7 @@ impl<'a> Parser<'a> {
                         op: op.parse()?,
                         rs: base,
                         rt: ast::Register::from(ft),
-                        imm: self.parse_immediate(x.as_str().replace('(', "").trim(), true)?,
+                        imm: self.parse_immediate(&x.as_str().replace('(', ""), true)?,
                     })
                 } else {
                     Ok(ast::Instruction::Immediate {
@@ -780,19 +746,16 @@ impl<'a> Parser<'a> {
                     let fd = args
                         .first()
                         .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?
-                        .trim()
                         .parse::<ast::FloatRegister>()
                         .map_err(|_| ParserError::InvalidRegister(inst.to_string()))?;
                     let fs = args
                         .get(1)
                         .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?
-                        .trim()
                         .parse::<ast::FloatRegister>()
                         .map_err(|_| ParserError::InvalidRegister(inst.to_string()))?;
                     let ft = args
                         .get(2)
                         .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?
-                        .trim()
                         .parse::<ast::FloatRegister>()
                         .map_err(|_| ParserError::InvalidRegister(inst.to_string()))?;
                     Ok(ast::Instruction::Register {
@@ -820,13 +783,11 @@ impl<'a> Parser<'a> {
                     let fd = args
                         .first()
                         .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?
-                        .trim()
                         .parse::<ast::FloatRegister>()
                         .map_err(|_| ParserError::InvalidRegister(inst.to_string()))?;
                     let fs = args
                         .get(1)
                         .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?
-                        .trim()
                         .parse::<ast::FloatRegister>()
                         .map_err(|_| ParserError::InvalidRegister(inst.to_string()))?;
                     Ok(ast::Instruction::Register {
@@ -853,13 +814,11 @@ impl<'a> Parser<'a> {
                         let fs = args
                             .first()
                             .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?
-                            .trim()
                             .parse::<ast::FloatRegister>()
                             .map_err(|_| ParserError::InvalidRegister(inst.to_string()))?;
                         let ft = args
                             .get(1)
                             .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?
-                            .trim()
                             .parse::<ast::FloatRegister>()
                             .map_err(|_| ParserError::InvalidRegister(inst.to_string()))?;
                         return Ok(ast::Instruction::Register {
@@ -909,6 +868,8 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_immediate(&self, offset: &str, signed: bool) -> Result<ast::Immediate, ParserError> {
+        let offset = offset.trim();
+
         if offset.starts_with('.') {
             return Ok(ast::Immediate::Label(offset.to_string()));
         }
