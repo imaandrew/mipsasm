@@ -1,5 +1,4 @@
 - Add COPz instruction
-- make cfc1, ctc1 have cop1 rs name
 - pref: mips iv
 - add cop2 instructions
 - add B, nop, move, not, negu pseudoinstructions
