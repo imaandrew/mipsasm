@@ -383,10 +383,10 @@ impl<'a> Parser<'a> {
                     rs: ast::Register::null(),
                     rt,
                     sa: if sa.ends_with('`') || !sa.contains("0x") {
-                        sa.trim_end_matches('`').parse::<i32>().unwrap() as u16
+                        sa.trim_end_matches('`').parse::<i32>().unwrap() as u32
                     } else {
                         let sa = sa.replace("0x", "");
-                        i32::from_str_radix(&sa, 16).unwrap() as u16
+                        i32::from_str_radix(&sa, 16).unwrap() as u32
                     },
                 })
             }
@@ -429,13 +429,31 @@ impl<'a> Parser<'a> {
             // |  SPECIAL  |                   code                |    op     |
             // ------6--------------------------20-----------------------6------
             //  Format:  op offset
-            "break" | "syscall" => Ok(ast::Instruction::Register {
-                op: op.parse()?,
-                rd: ast::Register::null(),
-                rs: ast::Register::null(),
-                rt: ast::Register::null(),
-                sa: 0,
-            }),
+            "break" | "syscall" => {
+                let code = if args.is_empty() {
+                    0
+                } else if args.len() == 1 {
+                    args.first()
+                        .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?
+                        .trim()
+                        .parse::<u32>()
+                        .unwrap()
+                    } else {
+                        return Err(ParserError::InvalidOperandCount {
+                            line: inst.to_string(),
+                            expected: 1,
+                            found: args.len(),
+                        });
+                    };
+
+                    Ok(ast::Instruction::Register {
+                        op: op.parse()?,
+                        rd: ast::Register::null(),
+                        rs: ast::Register::null(),
+                        rt: ast::Register::null(),
+                        sa: code,
+                    })
+            }
             // -----------------------------------------------------------------
             // |  SPECIAL  |   rs    |   rt    |   0000 0000 00    |    op     |
             // ------6----------5---------5--------------10--------------6------
@@ -943,7 +961,7 @@ impl<'a> Parser<'a> {
     }
 }
 
-fn parse_float_cond(cond: &str) -> Result<u16, ParserError> {
+fn parse_float_cond(cond: &str) -> Result<u32, ParserError> {
     match cond.to_lowercase().as_str() {
         "f" => Ok(0),
         "un" => Ok(1),

@@ -74,7 +74,7 @@ pub enum Instruction {
         rs: Register,
         rt: Register,
         rd: Register,
-        sa: u16,
+        sa: u32,
     },
 }
 
@@ -1013,10 +1013,10 @@ pub enum FloatCond {
     Ngt,
 }
 
-impl TryFrom<u16> for FloatCond {
+impl TryFrom<u32> for FloatCond {
     type Error = RegParseError;
 
-    fn try_from(cond: u16) -> Result<Self, Self::Error> {
+    fn try_from(cond: u32) -> Result<Self, Self::Error> {
         match cond {
             0 => Ok(FloatCond::F),
             1 => Ok(FloatCond::Un),

@@ -19,9 +19,9 @@ pub fn disassemble(bytes: Vec<u32>) -> Vec<ast::Instruction> {
         let i = match op {
             0 => {
                 match funct {
-                    0 => ast::Instruction::Register { op: ast::RTypeOp::Sll, rs: R::null(), rt: R::try_from(rt).unwrap(), rd: R::try_from(rd).unwrap(), sa: sa as u16 },
-                    2 => ast::Instruction::Register { op: ast::RTypeOp::Srl, rs: R::null(), rt: R::try_from(rt).unwrap(), rd: R::try_from(rd).unwrap(), sa: sa as u16 },
-                    3 => ast::Instruction::Register { op: ast::RTypeOp::Sra, rs: R::null(), rt: R::try_from(rt).unwrap(), rd: R::try_from(rd).unwrap(), sa: sa as u16 },
+                    0 => ast::Instruction::Register { op: ast::RTypeOp::Sll, rs: R::null(), rt: R::try_from(rt).unwrap(), rd: R::try_from(rd).unwrap(), sa },
+                    2 => ast::Instruction::Register { op: ast::RTypeOp::Srl, rs: R::null(), rt: R::try_from(rt).unwrap(), rd: R::try_from(rd).unwrap(), sa },
+                    3 => ast::Instruction::Register { op: ast::RTypeOp::Sra, rs: R::null(), rt: R::try_from(rt).unwrap(), rd: R::try_from(rd).unwrap(), sa },
                     4 => ast::Instruction::Register { op: ast::RTypeOp::Sllv, rs: R::try_from(rs).unwrap(), rt: R::try_from(rt).unwrap(), rd: R::try_from(rd).unwrap(), sa: 0 },
                     6 => ast::Instruction::Register { op: ast::RTypeOp::Srlv, rs: R::try_from(rs).unwrap(), rt: R::try_from(rt).unwrap(), rd: R::try_from(rd).unwrap(), sa: 0 },
                     7 => ast::Instruction::Register { op: ast::RTypeOp::Srav, rs: R::try_from(rs).unwrap(), rt: R::try_from(rt).unwrap(), rd: R::try_from(rd).unwrap(), sa: 0 },
@@ -65,12 +65,12 @@ pub fn disassemble(bytes: Vec<u32>) -> Vec<ast::Instruction> {
                     51 => ast::Instruction::Register { op: ast::RTypeOp::Tltu, rs: R::try_from(rs).unwrap(), rt: R::try_from(rt).unwrap(), rd: R::null(), sa: 0 },
                     52 => ast::Instruction::Register { op: ast::RTypeOp::Teq, rs: R::try_from(rs).unwrap(), rt: R::try_from(rt).unwrap(), rd: R::null(), sa: 0 },
                     54 => ast::Instruction::Register { op: ast::RTypeOp::Tne, rs: R::try_from(rs).unwrap(), rt: R::try_from(rt).unwrap(), rd: R::null(), sa: 0 },
-                    56 => ast::Instruction::Register { op: ast::RTypeOp::Dsll, rs: R::null(), rt: R::try_from(rt).unwrap(), rd: R::try_from(rd).unwrap(), sa: sa as u16 },
-                    58 => ast::Instruction::Register { op: ast::RTypeOp::Dsrl, rs: R::null(), rt: R::try_from(rt).unwrap(), rd: R::try_from(rd).unwrap(), sa: sa as u16 },
-                    59 => ast::Instruction::Register { op: ast::RTypeOp::Dsra, rs: R::null(), rt: R::try_from(rt).unwrap(), rd: R::try_from(rd).unwrap(), sa: sa as u16 },
-                    60 => ast::Instruction::Register { op: ast::RTypeOp::Dsll32, rs: R::null(), rt: R::try_from(rt).unwrap(), rd: R::try_from(rd).unwrap(), sa: sa as u16 },
-                    62 => ast::Instruction::Register { op: ast::RTypeOp::Dsrl32, rs: R::null(), rt: R::try_from(rt).unwrap(), rd: R::try_from(rd).unwrap(), sa: sa as u16 },
-                    63 => ast::Instruction::Register { op: ast::RTypeOp::Dsra32, rs: R::null(), rt: R::try_from(rt).unwrap(), rd: R::try_from(rd).unwrap(), sa: sa as u16 },
+                    56 => ast::Instruction::Register { op: ast::RTypeOp::Dsll, rs: R::null(), rt: R::try_from(rt).unwrap(), rd: R::try_from(rd).unwrap(), sa },
+                    58 => ast::Instruction::Register { op: ast::RTypeOp::Dsrl, rs: R::null(), rt: R::try_from(rt).unwrap(), rd: R::try_from(rd).unwrap(), sa },
+                    59 => ast::Instruction::Register { op: ast::RTypeOp::Dsra, rs: R::null(), rt: R::try_from(rt).unwrap(), rd: R::try_from(rd).unwrap(), sa },
+                    60 => ast::Instruction::Register { op: ast::RTypeOp::Dsll32, rs: R::null(), rt: R::try_from(rt).unwrap(), rd: R::try_from(rd).unwrap(), sa },
+                    62 => ast::Instruction::Register { op: ast::RTypeOp::Dsrl32, rs: R::null(), rt: R::try_from(rt).unwrap(), rd: R::try_from(rd).unwrap(), sa },
+                    63 => ast::Instruction::Register { op: ast::RTypeOp::Dsra32, rs: R::null(), rt: R::try_from(rt).unwrap(), rd: R::try_from(rd).unwrap(), sa },
                     e => panic!("Invalid R-type instruction: {}", e),
                 }
             }
@@ -156,7 +156,7 @@ pub fn disassemble(bytes: Vec<u32>) -> Vec<ast::Instruction> {
                     33 => ast::Instruction::Register { op: ast::RTypeOp::CvtDS, rs: R::try_from(rd).unwrap(), rt: R::null(), rd: R::try_from(sa).unwrap(), sa: 0 },
                     36 => ast::Instruction::Register { op: ast::RTypeOp::CvtWS, rs: R::try_from(rd).unwrap(), rt: R::null(), rd: R::try_from(sa).unwrap(), sa: 0 },
                     37 => ast::Instruction::Register { op: ast::RTypeOp::CvtLS, rs: R::try_from(rd).unwrap(), rt: R::null(), rd: R::try_from(sa).unwrap(), sa: 0 },
-                    48..=63 => ast::Instruction::Register { op: ast::RTypeOp::Cs, rs: R::try_from(rd).unwrap(), rt: R::try_from(rt).unwrap(), rd: R::null(), sa: (funct as u16) & 0xF },
+                    48..=63 => ast::Instruction::Register { op: ast::RTypeOp::Cs, rs: R::try_from(rd).unwrap(), rt: R::try_from(rt).unwrap(), rd: R::null(), sa: funct & 0xF },
                     e => panic!("Invalid instruction: {}", e),
 
                 }
@@ -180,7 +180,7 @@ pub fn disassemble(bytes: Vec<u32>) -> Vec<ast::Instruction> {
                     32 => ast::Instruction::Register { op: ast::RTypeOp::CvtSD, rs: R::try_from(rd).unwrap(), rt: R::null(), rd: R::try_from(sa).unwrap(), sa: 0 },
                     36 => ast::Instruction::Register { op: ast::RTypeOp::CvtWD, rs: R::try_from(rd).unwrap(), rt: R::null(), rd: R::try_from(sa).unwrap(), sa: 0 },
                     37 => ast::Instruction::Register { op: ast::RTypeOp::CvtLD, rs: R::try_from(rd).unwrap(), rt: R::null(), rd: R::try_from(sa).unwrap(), sa: 0 },
-                    48..=63 => ast::Instruction::Register { op: ast::RTypeOp::Cd, rs: R::try_from(rd).unwrap(), rt: R::try_from(rt).unwrap(), rd: R::null(), sa: (funct as u16) & 0xF },
+                    48..=63 => ast::Instruction::Register { op: ast::RTypeOp::Cd, rs: R::try_from(rd).unwrap(), rt: R::try_from(rt).unwrap(), rd: R::null(), sa: funct & 0xF },
                     e => panic!("Invalid instruction: {}", e),
                 }
                 (20, _) => match funct {
