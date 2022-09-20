@@ -49,11 +49,10 @@ fn main() -> Result<(), Box<dyn error::Error>> {
     }));
 
     let addr = cli.base_addr.replace("0x", "");
-    let addr = u32::from_str_radix(&addr, 16)
-        .unwrap_or_else(|_| {
-            eprintln!("Error: Invalid base address `{}`", cli.base_addr);
-            std::process::exit(1);
-        });
+    let addr = u32::from_str_radix(&addr, 16).unwrap_or_else(|_| {
+        eprintln!("Error: Invalid base address `{}`", cli.base_addr);
+        std::process::exit(1);
+    });
 
     match cli.mode {
         Mode::Asm => {
@@ -63,7 +62,7 @@ fn main() -> Result<(), Box<dyn error::Error>> {
                 Err(e) => {
                     eprintln!("Error: {}", e);
                     std::process::exit(1);
-                },
+                }
             };
 
             let output = mipsasm::assembler::assemble(output);
