@@ -430,29 +430,37 @@ impl<'a> Parser<'a> {
             // ------6--------------------------20-----------------------6------
             //  Format:  op offset
             "break" | "syscall" => {
-                let code = if args.is_empty() {
-                    0
-                } else if args.len() == 1 {
-                    args.first()
-                        .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?
-                        .trim()
-                        .parse::<u32>()
-                        .unwrap()
-                    } else {
-                        return Err(ParserError::InvalidOperandCount {
-                            line: inst.to_string(),
-                            expected: 1,
-                            found: args.len(),
-                        });
-                    };
+                if args.len() != 1 {
+                    return Err(ParserError::InvalidOperandCount {
+                        line: inst.to_string(),
+                        expected: 1,
+                        found: args.len(),
+                    });
+                }
+                let code = if args.first().unwrap().is_empty() {
+                    ast::Immediate::Int(0)
+                } else if !args.first().unwrap().is_empty() {
+                    self.parse_immediate(
+                        args.first()
+                            .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?
+                            .trim(),
+                        true,
+                    )?
+                } else {
+                    return Err(ParserError::InvalidOperandCount {
+                        line: inst.to_string(),
+                        expected: 1,
+                        found: args.len(),
+                    });
+                };
 
-                    Ok(ast::Instruction::Register {
-                        op: op.parse()?,
-                        rd: ast::Register::null(),
-                        rs: ast::Register::null(),
-                        rt: ast::Register::null(),
-                        sa: code,
-                    })
+                Ok(ast::Instruction::Register {
+                    op: op.parse()?,
+                    rd: ast::Register::null(),
+                    rs: ast::Register::null(),
+                    rt: ast::Register::null(),
+                    sa: code.as_u32(),
+                })
             }
             // -----------------------------------------------------------------
             // |  SPECIAL  |   rs    |   rt    |   0000 0000 00    |    op     |
