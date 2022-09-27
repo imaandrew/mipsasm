@@ -115,11 +115,12 @@ impl<'a> Parser<'a> {
                 }
                 let rt = if op.to_lowercase().trim() == "cache" {
                     ast::Register::try_from(
-                        args.first()
-                            .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?
-                            .trim()
-                            .parse::<u32>()
-                            .unwrap(),
+                        self.parse_immediate(
+                            args.first()
+                                .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?,
+                            false,
+                        )?
+                        .as_u32(),
                     )
                     .unwrap()
                 } else {
