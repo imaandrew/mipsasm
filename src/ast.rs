@@ -10,7 +10,7 @@ pub enum RegParseError {
     RegParseError(String),
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum Target {
     Function(String),
     Label(String),
@@ -31,7 +31,7 @@ impl Target {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum Immediate {
     Int(u16),
     Label(String),
@@ -57,7 +57,7 @@ impl fmt::LowerHex for Signed {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum Instruction {
     Immediate {
         op: ITypeOp,
@@ -356,7 +356,7 @@ impl fmt::Display for Instruction {
     }
 }
 
-#[derive(Clone, Copy, Debug, Display)]
+#[derive(Clone, Copy, Debug, Display, PartialEq, Eq)]
 #[strum(serialize_all = "snake_case")]
 pub enum Register {
     Zero,
@@ -764,7 +764,7 @@ impl From<Register> for Cop0Register {
     }
 }
 
-#[derive(Clone, Copy, Debug, Display, EnumString)]
+#[derive(Clone, Copy, Debug, Display, EnumString, PartialEq, Eq)]
 #[strum(ascii_case_insensitive)]
 #[strum(serialize_all = "snake_case")]
 pub enum ITypeOp {
@@ -840,7 +840,7 @@ pub enum ITypeOp {
     Xori,
 }
 
-#[derive(Clone, Copy, Debug, Display, EnumString)]
+#[derive(Clone, Copy, Debug, Display, EnumString, PartialEq, Eq)]
 #[strum(ascii_case_insensitive)]
 #[strum(serialize_all = "snake_case")]
 pub enum JTypeOp {
@@ -848,7 +848,7 @@ pub enum JTypeOp {
     Jal,
 }
 
-#[derive(Clone, Copy, Debug, Display, EnumString)]
+#[derive(Clone, Copy, Debug, Display, EnumString, PartialEq, Eq)]
 #[strum(ascii_case_insensitive)]
 #[strum(serialize_all = "snake_case")]
 pub enum RTypeOp {
