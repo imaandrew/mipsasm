@@ -455,10 +455,6 @@ impl FromStr for Register {
             return Register::try_from(x);
         }
 
-        if let Ok(x) = u32::from_str_radix(reg, 16) {
-            return Register::try_from(x);
-        }
-
         match reg.to_lowercase().as_str() {
             "zero" | "r0" => Ok(Register::Zero),
             "at" => Ok(Register::At),
@@ -492,7 +488,12 @@ impl FromStr for Register {
             "sp" => Ok(Register::Sp),
             "fp" => Ok(Register::Fp),
             "ra" => Ok(Register::Ra),
-            e => Err(RegParseError::RegParseError(e.to_string())),
+            e => {
+                if let Ok(x) = u32::from_str_radix(reg, 16) {
+                    return Register::try_from(x);
+                }
+                Err(RegParseError::RegParseError(e.to_string()))
+            }
         }
     }
 }
@@ -598,10 +599,6 @@ impl FromStr for FloatRegister {
             return FloatRegister::try_from(x);
         }
 
-        if let Ok(x) = u32::from_str_radix(reg, 16) {
-            return FloatRegister::try_from(x);
-        }
-
         match reg.to_lowercase().as_str() {
             "f0" | "fv0" => Ok(FloatRegister::Fv0),
             "f1" | "fv0f" => Ok(FloatRegister::Fv0f),
@@ -635,7 +632,12 @@ impl FromStr for FloatRegister {
             "f29" | "fs4f" => Ok(FloatRegister::Fs4f),
             "f30" | "fs5" => Ok(FloatRegister::Fs5),
             "f31" | "fs5f" => Ok(FloatRegister::Fs5f),
-            e => Err(RegParseError::RegParseError(e.to_string())),
+            e => {
+                if let Ok(x) = u32::from_str_radix(reg, 16) {
+                    return FloatRegister::try_from(x);
+                }
+                Err(RegParseError::RegParseError(e.to_string()))
+            }
         }
     }
 }
