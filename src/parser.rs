@@ -34,9 +34,9 @@ pub enum ParserError {
 pub fn scan(
     input: &str,
     base_addr: u32,
-    syms: HashMap<String, u32>,
+    syms: Option<HashMap<String, u32>>,
 ) -> Result<Vec<ast::Instruction>, ParserError> {
-    let mut parser = Parser::new(input, base_addr, syms);
+    let mut parser = Parser::new(input, base_addr, syms.unwrap_or_default());
     parser.scan()?;
     parser.adjust_labels();
     Ok(parser.insts)

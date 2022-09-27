@@ -57,7 +57,7 @@ fn main() -> Result<(), Box<dyn error::Error>> {
     match cli.mode {
         Mode::Asm => {
             let data: String = fs::read_to_string(cli.input_file)?.parse()?;
-            let output = match mipsasm::parser::scan(&data, addr, symbols) {
+            let output = match mipsasm::parser::scan(&data, addr, Some(symbols)) {
                 Ok(output) => output,
                 Err(e) => {
                     eprintln!("Error: {}", e);
