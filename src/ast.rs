@@ -57,7 +57,7 @@ impl fmt::LowerHex for Signed {
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(PartialEq, Eq)]
 pub enum Instruction {
     Immediate {
         op: ITypeOp,
@@ -353,6 +353,12 @@ impl fmt::Display for Instruction {
             },
             e => panic!("Invalid instruction: {:?}", e),
         }
+    }
+}
+
+impl fmt::Debug for Instruction {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", format!("{}", self).replace("\t    ", " "))
     }
 }
 
