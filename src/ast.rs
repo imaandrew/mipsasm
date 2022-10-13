@@ -455,7 +455,7 @@ impl FromStr for Register {
     type Err = RegParseError;
 
     fn from_str(reg: &str) -> Result<Self, Self::Err> {
-        let reg = reg.trim().trim_start_matches('$');
+        let reg = reg.trim().trim_start_matches('$').trim_start_matches('r');
 
         if let Ok(x) = reg.parse::<u32>() {
             return Register::try_from(x);
