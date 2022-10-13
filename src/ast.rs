@@ -858,15 +858,21 @@ pub enum JTypeOp {
 #[strum(ascii_case_insensitive)]
 #[strum(serialize_all = "snake_case")]
 pub enum RTypeOp {
+    #[strum(to_string = "abs.s")]
     AbsS,
+    #[strum(to_string = "abs.d")]
     AbsD,
     Add,
     Addu,
+    #[strum(to_string = "add.s")]
     AddS,
+    #[strum(to_string = "add.d")]
     AddD,
     And,
     Break,
+    #[strum(to_string = "c.s")]
     Cs,
+    #[strum(to_string = "c.d")]
     Cd,
     #[strum(to_string = "ceil.l.s")]
     CeilLS,
@@ -906,7 +912,9 @@ pub enum RTypeOp {
     Ddivu,
     Div,
     Divu,
+    #[strum(to_string = "div.s")]
     DivS,
+    #[strum(to_string = "div.d")]
     DivD,
     Dmfc0,
     Dmfc1,
@@ -940,17 +948,23 @@ pub enum RTypeOp {
     Mfc1,
     Mfhi,
     Mflo,
+    #[strum(to_string = "mov.s")]
     MovS,
+    #[strum(to_string = "mov.d")]
     MovD,
     Mtc0,
     Mtc1,
     Mthi,
     Mtlo,
+    #[strum(to_string = "mul.s")]
     MulS,
+    #[strum(to_string = "mul.d")]
     MulD,
     Mult,
     Multu,
+    #[strum(to_string = "neg.s")]
     NegS,
+    #[strum(to_string = "neg.d")]
     NegD,
     Nor,
     Or,
@@ -966,7 +980,9 @@ pub enum RTypeOp {
     Sllv,
     Slt,
     Sltu,
+    #[strum(to_string = "sqrt.s")]
     SqrtS,
+    #[strum(to_string = "sqrt.d")]
     SqrtD,
     Sra,
     Srav,
@@ -974,7 +990,9 @@ pub enum RTypeOp {
     Srlv,
     Sub,
     Subu,
+    #[strum(to_string = "sub.s")]
     SubS,
+    #[strum(to_string = "sub.d")]
     SubD,
     Sync,
     Syscall,
