@@ -33,15 +33,30 @@ impl Target {
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Immediate {
-    Int(u16),
+    Short(u16),
+    Int(u32),
+    Long(u64),
     Label(String),
 }
 
 impl Immediate {
     pub fn as_u32(&self) -> u32 {
         match self {
-            Immediate::Int(i) => *i as u32,
-            Immediate::Label(lbl) => panic!("{}", lbl),
+            Immediate::Short(i) => *i as u32,
+            Immediate::Int(i) => *i,
+            x => panic!("{:?}", x),
+        }
+    }
+
+    pub fn new<T>(val: T) -> Self
+    where
+        T: num::PrimInt,
+    {
+        match T::zero().count_zeros() {
+            16 => Immediate::Short(val.to_u16().unwrap()),
+            32 => Immediate::Int(val.to_u32().unwrap()),
+            64 => Immediate::Long(val.to_u64().unwrap()),
+            _ => panic!("invalid integer size"),
         }
     }
 }
@@ -88,7 +103,7 @@ impl fmt::Display for Instruction {
                 op,
                 rs,
                 rt,
-                imm: Immediate::Int(imm),
+                imm: Immediate::Short(imm),
             } => match op {
                 I::Cache
                 | I::Lb
