@@ -164,7 +164,8 @@ impl<'a> Parser<'a> {
             // |    op     |   rs    |   rt    |          immediate            |
             // ------6----------5---------5-------------------16----------------
             //  Format:  op rt, rs, immediate
-            "addi" | "addiu" | "andi" | "daddi" | "daddiu" | "ori" | "slti" | "sltiu" | "xori" => {
+            "addi" | "addiu" | "andi" | "daddi" | "daddiu" | "ori" | "slti" | "sltiu" | "xori"
+            | "dsubi" | "dsubiu" | "subi" | "subiu" => {
                 if args.len() != 3 {
                     return Err(ParserError::InvalidOperandCount {
                         line: inst.to_string(),
@@ -209,7 +210,7 @@ impl<'a> Parser<'a> {
             // |    op     |  00000  |   rt    |           immediate           |
             // ------6----------5---------5-------------------16----------------
             //  Format:  op rt, immediate
-            "lui" => {
+            "lui" | "lli" => {
                 if args.len() != 2 {
                     return Err(ParserError::InvalidOperandCount {
                         line: inst.to_string(),
@@ -238,7 +239,9 @@ impl<'a> Parser<'a> {
             // |    op     |   rs    |  00000  |            offset             |
             // ------6----------5---------5-------------------16----------------
             //  Format:  op rs, offset
-            "beqz" | "bgtz" | "bgtzl" | "blez" | "blezl" | "bnez" => {
+            "bgez" | "bgezal" | "bgezall" | "bgezl" | "bltz" | "bltzal" | "bltzall" | "bltzl"
+            | "teqi" | "tgei" | "tgeiu" | "tlti" | "tltiu" | "tnei" | "beqz" | "bnez" | "beqzl"
+            | "bnezl" | "bgtz" | "bgtzl" | "blez" | "blezl" => {
                 if args.len() != 2 {
                     return Err(ParserError::InvalidOperandCount {
                         line: inst.to_string(),
@@ -267,7 +270,9 @@ impl<'a> Parser<'a> {
             // |    op     |   rs    |   rt    |            offset             |
             // ------6----------5---------5-------------------16----------------
             //  Format:  op rs, rt, offset
-            "beq" | "beql" | "bne" | "bnel" => {
+            "beq" | "beql" | "bne" | "bnel" | "bge" | "bgt" | "ble" | "blt" | "bgeu" | "bgtu"
+            | "bleu" | "bltu" | "bgel" | "bgtl" | "blel" | "bltl" | "bgeul" | "bgtul" | "bleul"
+            | "bltul" => {
                 if args.len() != 3 {
                     return Err(ParserError::InvalidOperandCount {
                         line: inst.to_string(),
@@ -324,6 +329,7 @@ impl<'a> Parser<'a> {
             // |  SPECIAL  |      0000 0000 0000 000     |  stype  |    op     |
             // ------6-------------------15-------------------5---------6-------
             //  Format:  op          (stype = 0 implied)
+            "nop" | "sync" => Ok(ast::Instruction::Register {
                 op: op
                     .parse()
                     .map_err(|_| ParserError::InvalidOpcode(inst.to_string()))?,
@@ -337,7 +343,9 @@ impl<'a> Parser<'a> {
             // ------6----------5---------5---------5---------5----------6------
             //  Format:  op rd, rs, rt
             "add" | "addu" | "and" | "dadd" | "daddu" | "dsub" | "dsubu" | "nor" | "or" | "slt"
-            | "sltu" | "sub" | "subu" | "xor" => {
+            | "sltu" | "sub" | "subu" | "xor" | "dmul" | "dmulu" | "dmulo" | "dmulou" | "drem"
+            | "dremu" | "drol" | "dror" | "mul" | "mulu" | "mulo" | "mulou" | "rem" | "remu"
+            | "seq" | "sge" | "sgeu" | "sgt" | "sgtu" | "sle" | "sleu" | "sne" => {
                 if args.len() != 3 {
                     return Err(ParserError::InvalidOperandCount {
                         line: inst.to_string(),
@@ -490,8 +498,8 @@ impl<'a> Parser<'a> {
             // |  SPECIAL  |   rs    |   rt    |   0000 0000 00    |    op     |
             // ------6----------5---------5--------------10--------------6------
             //  Format:  op rs, rt
-            "ddiv" | "ddivu" | "div" | "divu" | "dmult" | "dmultu" | "mult" | "multu" | "teq"
-            | "tge" | "tgeu" | "tlt" | "tltu" | "tne" => {
+            "dmult" | "dmultu" | "mult" | "multu" | "teq" | "tge" | "tgeu" | "tlt" | "tltu"
+            | "tne" => {
                 if args.len() != 2 {
                     return Err(ParserError::InvalidOperandCount {
                         line: inst.to_string(),
@@ -563,6 +571,125 @@ impl<'a> Parser<'a> {
                     })
                 }
             }
+            "abs" | "dabs" | "dmove" | "dneg" | "dnegu" | "move" | "neg" | "negu" | "not" => {
+                if args.len() != 2 {
+                    return Err(ParserError::InvalidOperandCount {
+                        line: inst.to_string(),
+                        expected: 2,
+                        found: args.len(),
+                    });
+                }
+                let rd = args
+                    .first()
+                    .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?
+                    .parse()
+                    .map_err(|_| ParserError::InvalidRegister(inst.to_string()))?;
+                let rs = args
+                    .get(1)
+                    .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?
+                    .parse()
+                    .map_err(|_| ParserError::InvalidRegister(inst.to_string()))?;
+                Ok(ast::Instruction::Register {
+                    op: op
+                        .parse()
+                        .map_err(|_| ParserError::InvalidOpcode(inst.to_string()))?,
+                    rd,
+                    rs,
+                    rt: ast::Register::null(),
+                    sa: 0,
+                })
+            }
+            "b" | "bal" => {
+                if args.len() != 1 {
+                    return Err(ParserError::InvalidOperandCount {
+                        line: inst.to_string(),
+                        expected: 1,
+                        found: args.len(),
+                    });
+                }
+
+                let imm = args
+                    .first()
+                    .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?;
+                Ok(ast::Instruction::Immediate {
+                    op: op
+                        .parse()
+                        .map_err(|_| ParserError::InvalidOpcode(inst.to_string()))?,
+                    rs: ast::Register::null(),
+                    rt: ast::Register::null(),
+                    imm: self.parse_immediate::<i16>(imm)?,
+                })
+            }
+            "li" => {
+                if args.len() != 2 {
+                    return Err(ParserError::InvalidOperandCount {
+                        line: inst.to_string(),
+                        expected: 2,
+                        found: args.len(),
+                    });
+                }
+                let rt = args
+                    .first()
+                    .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?
+                    .parse()
+                    .map_err(|_| ParserError::InvalidRegister(inst.to_string()))?;
+                let imm = args
+                    .get(1)
+                    .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?;
+                Ok(ast::Instruction::Immediate {
+                    op: op
+                        .parse()
+                        .map_err(|_| ParserError::InvalidOpcode(inst.to_string()))?,
+                    rs: ast::Register::null(),
+                    rt,
+                    imm: self.parse_immediate::<i32>(imm)?,
+                })
+            }
+            "ddiv" | "ddivu" | "div" | "divu" => {
+                if args.len() != 3 {
+                    return Err(ParserError::InvalidOperandCount {
+                        line: inst.to_string(),
+                        expected: 3,
+                        found: args.len(),
+                    });
+                }
+                let rd = args
+                    .first()
+                    .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?
+                    .parse()
+                    .map_err(|_| ParserError::InvalidRegister(inst.to_string()))?;
+                let rs = args
+                    .get(1)
+                    .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?
+                    .parse()
+                    .map_err(|_| ParserError::InvalidRegister(inst.to_string()))?;
+                if args.len() == 2 {
+                    Ok(ast::Instruction::Register {
+                        op: op
+                            .parse()
+                            .map_err(|_| ParserError::InvalidOpcode(inst.to_string()))?,
+                        rd,
+                        rs,
+                        rt: ast::Register::null(),
+                        sa: 0,
+                    })
+                } else {
+                    let rt = args
+                        .get(2)
+                        .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?
+                        .parse()
+                        .map_err(|_| ParserError::InvalidRegister(inst.to_string()))?;
+                    Ok(ast::Instruction::Register {
+                        op: op
+                            .parse()
+                            .map_err(|_| ParserError::InvalidOpcode(inst.to_string()))?,
+                        rd,
+                        rs,
+                        rt,
+                        sa: 0,
+                    })
+                }
+            }
             // -----------------------------------------------------------------
             // |  SPECIAL  |   rs    |     0000 0000 0000 000      |    op     |
             // ------6----------5------------------15--------------------6------
@@ -594,7 +721,7 @@ impl<'a> Parser<'a> {
             // |  SPECIAL  |   0000 0000 00    |   rd    |  00000  |    op     |
             // ------6---------------10-------------5---------5----------6------
             //  Format:  op rd
-            "mfhi" | "mflo" => {
+            "clear" | "mfhi" | "mflo" => {
                 if args.len() != 1 {
                     return Err(ParserError::InvalidOperandCount {
                         line: inst.to_string(),
@@ -617,12 +744,7 @@ impl<'a> Parser<'a> {
                     sa: 0,
                 })
             }
-            // -----------------------------------------------------------------
-            // |  REGIMM   |   rs    |   op    |           immediate           |
-            // ------6----------5---------5-------------------16----------------
-            //  Format:  op rs, immediate
-            "bgez" | "bgezal" | "bgezall" | "bgezl" | "bltz" | "bltzal" | "bltzall" | "bltzl"
-            | "teqi" | "tgei" | "tgeiu" | "tlti" | "tltiu" | "tnei" => {
+            "dli" => {
                 if args.len() != 2 {
                     return Err(ParserError::InvalidOperandCount {
                         line: inst.to_string(),
@@ -630,7 +752,7 @@ impl<'a> Parser<'a> {
                         found: args.len(),
                     });
                 }
-                let rs = args
+                let rt = args
                     .first()
                     .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?
                     .parse()
@@ -642,9 +764,9 @@ impl<'a> Parser<'a> {
                     op: op
                         .parse()
                         .map_err(|_| ParserError::InvalidOpcode(inst.to_string()))?,
-                    rs,
-                    rt: ast::Register::null(),
-                    imm: self.parse_immediate::<i16>(imm)?,
+                    rs: ast::Register::null(),
+                    rt,
+                    imm: self.parse_immediate::<i64>(imm)?,
                 })
             }
             // -----------------------------------------------------------------
@@ -797,13 +919,6 @@ impl<'a> Parser<'a> {
                     })
                 }
             }
-            "nop" => Ok(ast::Instruction::Register {
-                op: ast::RTypeOp::Sll,
-                rs: ast::Register::null(),
-                rt: ast::Register::null(),
-                rd: ast::Register::null(),
-                sa: 0,
-            }),
             _ => match &op.to_lowercase()[..op.len() - 2] {
                 // -----------------------------------------------------------------
                 // |   COP1    |   fmt   |   ft    |   fs    |   fd    |    op     |

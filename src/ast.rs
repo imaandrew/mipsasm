@@ -48,6 +48,15 @@ impl Immediate {
         }
     }
 
+    pub fn as_u64(&self) -> u64 {
+        match self {
+            Immediate::Short(i) => *i as u64,
+            Immediate::Int(i) => *i as u64,
+            Immediate::Long(i) => *i,
+            x => panic!("{:?}", x),
+        }
+    }
+
     pub fn new<T>(val: T) -> Self
     where
         T: num::PrimInt,
@@ -802,7 +811,6 @@ pub enum ITypeOp {
     Bc1tl,
     Beq,
     Beql,
-    Beqz,
     Bgez,
     Bgezal,
     Bgezall,
@@ -816,7 +824,6 @@ pub enum ITypeOp {
     Bltzall,
     Bltzl,
     Bne,
-    Bnez,
     Bnel,
     Cache,
     Daddi,
@@ -859,6 +866,36 @@ pub enum ITypeOp {
     Tltiu,
     Tnei,
     Xori,
+    // Pseudoinstructions
+    B,
+    Bal,
+    Beqz,
+    Bnez,
+    Beqzl,
+    Bnezl,
+    Bge,
+    Bgt,
+    Ble,
+    Blt,
+    Bgeu,
+    Bgtu,
+    Bleu,
+    Bltu,
+    Bgel,
+    Bgtl,
+    Blel,
+    Bltl,
+    Bgeul,
+    Bgtul,
+    Bleul,
+    Bltul,
+    Dli,
+    Dsubi,
+    Dsubiu,
+    Lli,
+    Li,
+    Subi,
+    Subiu,
 }
 
 #[derive(Clone, Copy, Debug, Display, EnumString, PartialEq, Eq)]
@@ -1030,6 +1067,40 @@ pub enum RTypeOp {
     #[strum(to_string = "trunc.w.d")]
     TruncWD,
     Xor,
+    // pseudoinstructions
+    Abs,
+    Clear,
+    Dabs,
+    Dmove,
+    Dmul,
+    Dmulu,
+    Dmulo,
+    Dmulou,
+    Dneg,
+    Dnegu,
+    Drem,
+    Dremu,
+    Drol,
+    Dror,
+    Move,
+    Mul,
+    Mulu,
+    Mulo,
+    Mulou,
+    Neg,
+    Negu,
+    Nop,
+    Not,
+    Rem,
+    Remu,
+    Seq,
+    Sge,
+    Sgeu,
+    Sgt,
+    Sgtu,
+    Sle,
+    Sleu,
+    Sne,
 }
 
 #[derive(Clone, Copy, Debug, Display, EnumString)]
