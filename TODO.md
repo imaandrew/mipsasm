@@ -1,7 +1,1 @@
-- Add COPz instruction
-- pref: mips iv
-- add cop2 instructions
-- add B, nop, move, not, negu pseudoinstructions
-- check syscall, break, sync instructions for arguments
-- check div instructions for arguments
-- Implement better way to handle pseudoinstructions
+- Pseudoinstruction disassembling support
