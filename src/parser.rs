@@ -69,7 +69,7 @@ impl<'a> Parser<'a> {
     }
 
     fn scan_line(&mut self, line: &'a str) -> Result<(), ParserError> {
-        if line.starts_with('.') {
+        if line.ends_with(':') {
             self.labels
                 .insert(self.parse_label(line)?, self.insts.len() as isize);
         } else if !line.is_empty() {
@@ -83,7 +83,7 @@ impl<'a> Parser<'a> {
         if self.labels.contains_key(&label) {
             return Err(ParserError::MultipleLabelDefinition(label.to_string()));
         }
-        Ok(label)
+        Ok(label.trim_end_matches(':'))
     }
 
     fn parse_inst(&self, inst: &'a str) -> Result<ast::Instruction, ParserError> {
@@ -1068,7 +1068,7 @@ impl<'a> Parser<'a> {
     {
         let imm = imm.trim();
 
-        if imm.starts_with('.') {
+        if self.labels.contains_key(imm) {
             return Ok(ast::Immediate::Label(imm.to_string()));
         }
 
