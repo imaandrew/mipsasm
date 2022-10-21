@@ -1,3 +1,4 @@
+use regex::Regex;
 use std::convert::{From, TryFrom};
 use std::fmt;
 use std::str::FromStr;
@@ -499,7 +500,15 @@ impl FromStr for Register {
     type Err = RegParseError;
 
     fn from_str(reg: &str) -> Result<Self, Self::Err> {
-        let reg = reg.trim().trim_start_matches('$').trim_start_matches('r');
+        let reg = reg.trim().trim_start_matches('$');
+
+        let reg_regex = Regex::new(r"r\d{1,2}r").unwrap();
+
+        if reg_regex.find(reg).is_some() {
+            let reg = reg.trim_start_matches('r');
+            let reg = reg.parse::<u32>().unwrap();
+            return Register::try_from(reg);
+        }
 
         if let Ok(x) = reg.parse::<u32>() {
             return Register::try_from(x);
