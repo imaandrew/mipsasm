@@ -232,7 +232,7 @@ impl<'a> Parser<'a> {
                         .map_err(|_| ParserError::InvalidOpcode(inst.to_string()))?,
                     rt,
                     rs: ast::Register::null(),
-                    imm: self.parse_immediate::<i16>(imm)?,
+                    imm: self.parse_immediate::<u16>(imm)?,
                 })
             }
             // -----------------------------------------------------------------
