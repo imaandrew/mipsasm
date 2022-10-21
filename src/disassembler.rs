@@ -12,6 +12,7 @@ pub fn disassemble(bytes: Vec<u32>) -> Vec<ast::Instruction> {
         let rt = (inst >> 16) & 0x1F;
         let rd = (inst >> 11) & 0x1F;
         let sa = (inst >> 6) & 0x1F;
+        let code = (inst >> 6) & 0xFFFFF;
         let funct = inst & 0x3F;
         let imm = inst & 0xFFFF;
         let target = ((inst & 0x3FFFFFF) << 2) | 0x80000000;
@@ -27,8 +28,8 @@ pub fn disassemble(bytes: Vec<u32>) -> Vec<ast::Instruction> {
                     7 => ast::Instruction::Register { op: ast::RTypeOp::Srav, rs: R::try_from(rs).unwrap(), rt: R::try_from(rt).unwrap(), rd: R::try_from(rd).unwrap(), sa: 0 },
                     8 => ast::Instruction::Register { op: ast::RTypeOp::Jr, rs: R::try_from(rs).unwrap(), rt: R::null(), rd: R::null(), sa: 0 },
                     9 => ast::Instruction::Register { op: ast::RTypeOp::Jalr, rs: R::try_from(rs).unwrap(), rt: R::null(), rd: R::try_from(rd).unwrap(), sa: 0 },
-                    12 => ast::Instruction::Register { op: ast::RTypeOp::Syscall, rs: R::null(), rt: R::null(), rd: R::null(), sa: 0 },
-                    13 => ast::Instruction::Register { op: ast::RTypeOp::Break, rs: R::null(), rt: R::null(), rd: R::null(), sa: 0 },
+                    12 => ast::Instruction::Register { op: ast::RTypeOp::Syscall, rs: R::null(), rt: R::null(), rd: R::null(), sa: code },
+                    13 => ast::Instruction::Register { op: ast::RTypeOp::Break, rs: R::null(), rt: R::null(), rd: R::null(), sa: code },
                     15 => ast::Instruction::Register { op: ast::RTypeOp::Sync, rs: R::null(), rt: R::null(), rd: R::null(), sa: 0 },
                     16 => ast::Instruction::Register { op: ast::RTypeOp::Mfhi, rs: R::null(), rt: R::null(), rd: R::try_from(rd).unwrap(), sa: 0 },
                     17 => ast::Instruction::Register { op: ast::RTypeOp::Mthi, rs: R::try_from(rs).unwrap(), rt: R::null(), rd: R::null(), sa: 0 },

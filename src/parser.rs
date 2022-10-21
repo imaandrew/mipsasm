@@ -471,7 +471,7 @@ impl<'a> Parser<'a> {
                 let code = if args.first().unwrap().is_empty() {
                     ast::Immediate::Short(0)
                 } else if !args.first().unwrap().is_empty() {
-                    self.parse_immediate::<i16>(
+                    self.parse_immediate::<u16>(
                         args.first()
                             .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?
                             .trim(),

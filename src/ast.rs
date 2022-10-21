@@ -247,7 +247,11 @@ impl fmt::Display for Instruction {
                     write!(f, "{}\t    ${}, ${}, ${}", op, rd, rt, rs)
                 }
                 R::Break | R::Syscall => {
-                    write!(f, "{}", op)
+                    if *sa == 0 {
+                        write!(f, "{}", op)
+                    } else {
+                        write!(f, "{}\t    {:#x?}", op, sa)
+                    }
                 }
                 R::Ddiv
                 | R::Ddivu

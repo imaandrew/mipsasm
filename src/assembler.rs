@@ -119,8 +119,8 @@ pub fn assemble(insts: Vec<ast::Instruction>) -> Vec<u32> {
                     0b001101 << 26 | rt.as_num() << 21 | rt.as_num() << 16 | (imm.as_u64() & 0xFFFF) as u32
 
                 }
-                I::Dsubi => 0b011000 << 26 | rs.as_num() << 21 | rt.as_num() << 16 | imm.as_u32().wrapping_neg(),
-                I::Dsubiu => 0b001001 << 26 | rs.as_num() << 21 | rt.as_num() << 16 | imm.as_u32().wrapping_neg(),
+                I::Dsubi => 0b011000 << 26 | rs.as_num() << 21 | rt.as_num() << 16 | -(imm.as_u32() as i64) as u32 & 0xFFFF,
+                I::Dsubiu => 0b011001 << 26 | rs.as_num() << 21 | rt.as_num() << 16 | -(imm.as_u32() as i64) as u32 & 0xFFFF,
                 I::Lb => 0b100000 << 26 | rs.as_num() << 21 | rt.as_num() << 16 | imm.as_u32(),
                 I::Lbu => 0b100100 << 26 | rs.as_num() << 21 | rt.as_num() << 16 | imm.as_u32(),
                 I::Ld => 0b110111 << 26 | rs.as_num() << 21 | rt.as_num() << 16 | imm.as_u32(),
@@ -184,7 +184,7 @@ pub fn assemble(insts: Vec<ast::Instruction>) -> Vec<u32> {
                 R::AddS => 0b010001 << 26 | 0b10000 << 21 | rt.as_num() << 16 | rs.as_num() << 11 | rd.as_num() << 6,
                 R::AddD => 0b010001 << 26 | 0b10001 << 21 | rt.as_num() << 16 | rs.as_num() << 11 | rd.as_num() << 6,
                 R::And => rs.as_num() << 21 | rt.as_num() << 16 | rd.as_num() << 11 | 0b100100,
-                R::Break => 0b001101,
+                R::Break => sa << 6 | 0b001101,
                 R::Clear => rd.as_num() << 11 | 0b100001,
                 R::Cs => 0b010001 << 26 | 0b10000 << 21 | rt.as_num() << 16 | rs.as_num() << 11 | 0b0000011 << 4 | sa as u32,
                 R::Cd => 0b010001 << 26 | 0b10001 << 21 | rt.as_num() << 16 | rs.as_num() << 11 | 0b0000011 << 4 | sa as u32,
@@ -439,7 +439,7 @@ pub fn assemble(insts: Vec<ast::Instruction>) -> Vec<u32> {
                 R::SubS => 0b010001 << 26 | 0b10000 << 21 | rt.as_num() << 16 | rs.as_num() << 11 | rd.as_num() << 6 | 0b000001,
                 R::SubD => 0b010001 << 26 | 0b10001 << 21 | rt.as_num() << 16 | rs.as_num() << 11 | rd.as_num() << 6 | 0b000001,
                 R::Sync => 0b001111,
-                R::Syscall => 0b001100,
+                R::Syscall => sa << 6 | 0b001100,
                 R::Teq => rs.as_num() << 21 | rt.as_num() << 16 | 0b110100,
                 R::Tge => rs.as_num() << 21 | rt.as_num() << 16 | 0b110000,
                 R::Tgeu => rs.as_num() << 21 | rt.as_num() << 16 | 0b110001,
