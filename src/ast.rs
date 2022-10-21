@@ -133,8 +133,7 @@ impl fmt::Display for Instruction {
                 rt,
                 imm: Immediate::Short(imm),
             } => match op {
-                I::Cache
-                | I::Lb
+                I::Lb
                 | I::Lbu
                 | I::Ld
                 | I::Ldl
@@ -158,6 +157,16 @@ impl fmt::Display for Instruction {
                 | I::Swl
                 | I::Swr => {
                     write!(f, "{}\t    ${}, {:#x}(${})", op, rt, Signed(*imm), rs)
+                }
+                I::Cache => {
+                    write!(
+                        f,
+                        "{}\t    {:#x}, {:#x}(${})",
+                        op,
+                        rt.as_num(),
+                        Signed(*imm),
+                        rs
+                    )
                 }
                 I::Addi | I::Addiu | I::Daddi | I::Daddiu | I::Slti | I::Sltiu => {
                     write!(f, "{}\t    ${}, ${}, {:#x}", op, rt, rs, Signed(*imm))
@@ -407,7 +416,8 @@ impl fmt::Display for Instruction {
 
 impl fmt::Debug for Instruction {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", format!("{}", self).replace("\t    ", " "))
+        let re = Regex::new(r"\s+").unwrap();
+        write!(f, "{}", re.replace_all(&self.to_string(), " "))
     }
 }
 
