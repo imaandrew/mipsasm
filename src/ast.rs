@@ -62,9 +62,27 @@ impl Immediate {
         T: num::PrimInt,
     {
         match T::zero().count_zeros() {
-            16 => Immediate::Short(val.to_u16().unwrap()),
-            32 => Immediate::Int(val.to_u32().unwrap()),
-            64 => Immediate::Long(val.to_u64().unwrap()),
+            16 => {
+                if let Some(i) = val.to_u16() {
+                    Immediate::Short(i)
+                } else {
+                    Immediate::Short(val.to_i16().unwrap() as u16)
+                }
+            }
+            32 => {
+                if let Some(i) = val.to_u32() {
+                    Immediate::Int(i)
+                } else {
+                    Immediate::Int(val.to_i32().unwrap() as u32)
+                }
+            }
+            64 => {
+                if let Some(i) = val.to_u64() {
+                    Immediate::Long(i)
+                } else {
+                    Immediate::Long(val.to_i64().unwrap() as u64)
+                }
+            }
             _ => panic!("invalid integer size"),
         }
     }
@@ -187,6 +205,7 @@ impl fmt::Display for Instruction {
                         rs
                     )
                 }
+                _ => todo!(),
             },
             Instruction::Jump {
                 op,
@@ -374,6 +393,7 @@ impl fmt::Display for Instruction {
                         )
                     }
                 }
+                _ => todo!(),
             },
             e => panic!("Invalid instruction: {:?}", e),
         }

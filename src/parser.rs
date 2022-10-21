@@ -646,7 +646,7 @@ impl<'a> Parser<'a> {
                 })
             }
             "ddiv" | "ddivu" | "div" | "divu" => {
-                if args.len() != 3 {
+                if args.len() != 3 && args.len() != 2 {
                     return Err(ParserError::InvalidOperandCount {
                         line: inst.to_string(),
                         expected: 3,
