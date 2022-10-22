@@ -516,7 +516,7 @@ impl FromStr for Register {
     fn from_str(reg: &str) -> Result<Self, Self::Err> {
         let reg = reg.trim().trim_start_matches('$');
 
-        let reg_regex = Regex::new(r"r\d{1,2}r").unwrap();
+        let reg_regex = Regex::new(r"r\d{1,2}").unwrap();
 
         if reg_regex.find(reg).is_some() {
             let reg = reg.trim_start_matches('r');
