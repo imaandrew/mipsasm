@@ -1,7 +1,10 @@
 use crate::ast;
+use once_cell::sync::Lazy;
 use regex::Regex;
 use std::collections::HashMap;
 use thiserror::Error;
+
+static COMMENT_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"(/{2}|;).*").unwrap());
 
 #[derive(Error, Debug)]
 pub enum ParserError {
@@ -45,7 +48,7 @@ pub fn scan(
 struct Parser<'a> {
     input: &'a str,
     insts: Vec<ast::Instruction>,
-    labels: HashMap<&'a str, isize>,
+    labels: HashMap<String, isize>,
     base_addr: u32,
     syms: HashMap<String, u32>,
 }
@@ -63,15 +66,18 @@ impl<'a> Parser<'a> {
 
     fn scan(&mut self) -> Result<(), ParserError> {
         for line in self.input.lines() {
-            self.scan_line(line)?;
+            let line = COMMENT_RE.replace_all(line, "");
+            self.scan_line(&line)?;
         }
         Ok(())
     }
 
-    fn scan_line(&mut self, line: &'a str) -> Result<(), ParserError> {
+    fn scan_line(&mut self, line: &str) -> Result<(), ParserError> {
         if line.ends_with(':') {
-            self.labels
-                .insert(self.parse_label(line)?, self.insts.len() as isize);
+            self.labels.insert(
+                self.parse_label(line.trim_end_matches(':').to_string())?,
+                self.insts.len() as isize,
+            );
         } else if !line.is_empty() {
             self.insts.push(self.parse_inst(line)?);
         }
@@ -79,11 +85,11 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
-    fn parse_label(&self, label: &'a str) -> Result<&'a str, ParserError> {
+    fn parse_label(&self, label: String) -> Result<String, ParserError> {
         if self.labels.contains_key(&label) {
-            return Err(ParserError::MultipleLabelDefinition(label.to_string()));
+            return Err(ParserError::MultipleLabelDefinition(label));
         }
-        Ok(label.trim_end_matches(':'))
+        Ok(label)
     }
 
     fn parse_inst(&self, inst: &'a str) -> Result<ast::Instruction, ParserError> {
