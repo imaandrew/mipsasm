@@ -1,1 +1,3 @@
 - Pseudoinstruction disassembling support
+- Add local labels
+- Delay slot checking
