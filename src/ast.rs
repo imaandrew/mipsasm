@@ -13,7 +13,6 @@ pub enum RegParseError {
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Target {
-    Function(String),
     Label(String),
     Address(u32),
 }
@@ -21,9 +20,6 @@ pub enum Target {
 impl Target {
     pub fn as_u32(&self) -> u32 {
         match self {
-            Target::Function(name) => {
-                panic!("{}", name)
-            }
             Target::Label(name) => {
                 panic!("{}", name)
             }

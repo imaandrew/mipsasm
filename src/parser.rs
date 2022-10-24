@@ -10,6 +10,8 @@ static COMMENT_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"(/{2}|;).*").unwrap()
 pub enum ParserError {
     #[error("label `{0}` defined multiple times")]
     MultipleLabelDefinition(String),
+    #[error("label `{0}` must start with a letter")]
+    InvalidLabel(String),
     #[error("invalid instruction `{0}`")]
     InvalidInstruction(String),
     #[error("invalid number of operands `{line}`\n Expected {expected} operands, found {found}")]
@@ -86,6 +88,9 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_label(&self, label: String) -> Result<String, ParserError> {
+        if label.chars().next().unwrap().is_numeric() {
+            return Err(ParserError::InvalidLabel(label));
+        }
         if self.labels.contains_key(&label) {
             return Err(ParserError::MultipleLabelDefinition(label));
         }
@@ -1109,21 +1114,19 @@ impl<'a> Parser<'a> {
         if let Some(x) = self.syms.get(target) {
             return Ok(ast::Target::Address(*x));
         }
-        if target.starts_with("~Func:") {
-            Ok(ast::Target::Function(target.replace("~Func:", "")))
-        } else if target.starts_with('.') {
-            Ok(ast::Target::Label(target.to_string()))
-        } else if target.ends_with('`') {
-            match target.trim_end_matches('`').parse::<u32>() {
-                Ok(addr) => Ok(ast::Target::Address(addr)),
-                Err(_) => Err(ParserError::InvalidTargetAddress(target.to_string())),
-            }
+
+        if target.starts_with("0x") {
+            let target = target.replace("0x", "");
+            Ok(ast::Target::Address(
+                u32::from_str_radix(&target, 16)
+                    .map_err(|_| ParserError::InvalidTargetAddress(target.to_string()))?,
+            ))
+        } else if target[0..1].parse::<u32>().is_ok() {
+            Ok(ast::Target::Address(target.parse::<u32>().map_err(
+                |_| ParserError::InvalidTargetAddress(target.to_string()),
+            )?))
         } else {
-            let addr = target.replace("0x", "");
-            match u32::from_str_radix(&addr, 16) {
-                Ok(addr) => Ok(ast::Target::Address(addr)),
-                Err(_) => Err(ParserError::InvalidTargetAddress(target.to_string())),
-            }
+            Ok(ast::Target::Label(target.to_string()))
         }
     }
 }
