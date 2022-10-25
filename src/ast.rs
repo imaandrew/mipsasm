@@ -152,12 +152,12 @@ impl fmt::Display for Instruction {
                 | I::Sw
                 | I::Swl
                 | I::Swr => {
-                    write!(f, "{}\t    ${}, {:#x}(${})", op, rt, Signed(*imm), rs)
+                    write!(f, "{:11}${}, {:#x}(${})", op, rt, Signed(*imm), rs)
                 }
                 I::Cache => {
                     write!(
                         f,
-                        "{}\t    {:#x}, {:#x}(${})",
+                        "{:11}{:#x}, {:#x}(${})",
                         op,
                         rt.as_num(),
                         Signed(*imm),
@@ -165,15 +165,15 @@ impl fmt::Display for Instruction {
                     )
                 }
                 I::Addi | I::Addiu | I::Daddi | I::Daddiu | I::Slti | I::Sltiu => {
-                    write!(f, "{}\t    ${}, ${}, {:#x}", op, rt, rs, Signed(*imm))
+                    write!(f, "{:11}${}, ${}, {:#x}", op, rt, rs, Signed(*imm))
                 }
-                I::Andi | I::Ori | I::Xori => write!(f, "{}\t    ${}, ${}, {:#x}", op, rt, rs, imm),
-                I::Lui => write!(f, "{}\t    ${}, {:#x}", op, rt, imm),
+                I::Andi | I::Ori | I::Xori => write!(f, "{:11}${}, ${}, {:#x}", op, rt, rs, imm),
+                I::Lui => write!(f, "{:11}${}, {:#x}", op, rt, imm),
                 I::Beqz | I::Bgtz | I::Bgtzl | I::Blez | I::Blezl | I::Bnez => {
-                    write!(f, "{}\t    ${}, {:#x}", op, rs, Signed(*imm))
+                    write!(f, "{:11}${}, {:#x}", op, rs, Signed(*imm))
                 }
                 I::Beq | I::Beql | I::Bne | I::Bnel => {
-                    write!(f, "{}\t    ${}, ${}, {:#x}", op, rs, rt, Signed(*imm))
+                    write!(f, "{:11}${}, ${}, {:#x}", op, rs, rt, Signed(*imm))
                 }
                 I::Bgez
                 | I::Bgezal
@@ -189,7 +189,7 @@ impl fmt::Display for Instruction {
                 | I::Tlti
                 | I::Tltiu
                 | I::Tnei => {
-                    write!(f, "{}\t    ${}, {:#x}", op, rs, Signed(*imm))
+                    write!(f, "{:11}${}, {:#x}", op, rs, Signed(*imm))
                 }
                 I::Bc0f
                 | I::Bc1f
@@ -199,12 +199,12 @@ impl fmt::Display for Instruction {
                 | I::Bc1t
                 | I::Bc0tl
                 | I::Bc1tl => {
-                    write!(f, "{}\t    {:#x}", op, Signed(*imm))
+                    write!(f, "{:11}{:#x}", op, Signed(*imm))
                 }
                 I::Ldc1 | I::Lwc1 | I::Sdc1 | I::Swc1 => {
                     write!(
                         f,
-                        "{}\t    ${}, {:#x}(${})",
+                        "{:11}${}, {:#x}(${})",
                         op,
                         FloatRegister::from(*rt),
                         Signed(*imm),
@@ -217,7 +217,7 @@ impl fmt::Display for Instruction {
                 op,
                 target: Target::Address(target),
             } => {
-                write!(f, "{}\t    {:#X?}", op, target)
+                write!(f, "{:11}{:#X?}", op, target)
             }
             Instruction::Register { op, rs, rt, rd, sa } => match op {
                 R::Sync => write!(f, "{}", op),
@@ -235,7 +235,7 @@ impl fmt::Display for Instruction {
                 | R::Sub
                 | R::Subu
                 | R::Xor => {
-                    write!(f, "{}\t    ${}, ${}, ${}", op, rd, rs, rt)
+                    write!(f, "{:11}${}, ${}, ${}", op, rd, rs, rt)
                 }
                 R::Dsll
                 | R::Dsll32
@@ -246,16 +246,16 @@ impl fmt::Display for Instruction {
                 | R::Sll
                 | R::Sra
                 | R::Srl => {
-                    write!(f, "{}\t    ${}, ${}, {:#x?}", op, rd, rt, sa)
+                    write!(f, "{:11}${}, ${}, {:#x?}", op, rd, rt, sa)
                 }
                 R::Dsllv | R::Dsrav | R::Dsrlv | R::Sllv | R::Srav | R::Srlv => {
-                    write!(f, "{}\t    ${}, ${}, ${}", op, rd, rt, rs)
+                    write!(f, "{:11}${}, ${}, ${}", op, rd, rt, rs)
                 }
                 R::Break | R::Syscall => {
                     if *sa == 0 {
                         write!(f, "{}", op)
                     } else {
-                        write!(f, "{}\t    {:#x?}", op, sa)
+                        write!(f, "{:11}{:#x?}", op, sa)
                     }
                 }
                 R::Ddiv
@@ -272,26 +272,26 @@ impl fmt::Display for Instruction {
                 | R::Tlt
                 | R::Tltu
                 | R::Tne => {
-                    write!(f, "{}\t    ${}, ${}", op, rs, rt)
+                    write!(f, "{:11}${}, ${}", op, rs, rt)
                 }
                 R::Jalr => {
                     if let &Register::Ra = rd {
-                        write!(f, "{}\t    ${}", op, rs)
+                        write!(f, "{:11}${}", op, rs)
                     } else {
-                        write!(f, "{}\t    ${}, ${}", op, rd, rs)
+                        write!(f, "{:11}${}, ${}", op, rd, rs)
                     }
                 }
                 R::Jr | R::Mthi | R::Mtlo => {
-                    write!(f, "{}\t    ${}", op, rs)
+                    write!(f, "{:11}${}", op, rs)
                 }
                 R::Mfhi | R::Mflo => {
-                    write!(f, "{}\t    ${}", op, rd)
+                    write!(f, "{:11}${}", op, rd)
                 }
                 R::Cfc0 | R::Ctc0 | R::Dmfc0 | R::Dmtc0 | R::Mfc0 | R::Mtc0 => {
-                    write!(f, "{}\t    ${}, {}", op, rt, Cop0Register::from(*rd))
+                    write!(f, "{:11}${}, {}", op, rt, Cop0Register::from(*rd))
                 }
                 R::Cfc1 | R::Ctc1 | R::Dmfc1 | R::Dmtc1 | R::Mfc1 | R::Mtc1 => {
-                    write!(f, "{}\t    ${}, ${}", op, rt, FloatRegister::from(*rd))
+                    write!(f, "{:11}${}, ${}", op, rt, FloatRegister::from(*rd))
                 }
                 R::Eret | R::Tlbp | R::Tlbr | R::Tlbwi | R::Tlbwr => {
                     write!(f, "{}", op)
@@ -300,7 +300,7 @@ impl fmt::Display for Instruction {
                     let x = op.to_string().replace('_', ".");
                     write!(
                         f,
-                        "{}\t    ${}, ${}, ${}",
+                        "{:11}${}, ${}, ${}",
                         x,
                         FloatRegister::from(*rd),
                         FloatRegister::from(*rs),
@@ -328,7 +328,7 @@ impl fmt::Display for Instruction {
                     let x = op.to_string().replace('_', ".");
                     write!(
                         f,
-                        "{}\t    ${}, ${}",
+                        "{:11}${}, ${}",
                         x,
                         FloatRegister::from(*rd),
                         FloatRegister::from(*rs)
