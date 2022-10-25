@@ -423,27 +423,9 @@ fn test_li() {
 }
 
 test!(test_lui, "lui $a0, 0x8000", 0x3c048000);
-
-#[test]
-fn test_lw() {
-    let inst = asm("lw $a0, 0x10($a1)");
-    assert_eq!(inst, vec![0x8ca40010]);
-    assert_eq!(disasm(&inst), "lw $a0, 0x10($a1)");
-}
-
-#[test]
-fn test_lwl() {
-    let inst = asm("lwl $a0, 0x10($a1)");
-    assert_eq!(inst, vec![0x88a40010]);
-    assert_eq!(disasm(&inst), "lwl $a0, 0x10($a1)");
-}
-
-#[test]
-fn test_lwr() {
-    let inst = asm("lwr $a0, 0x10($a1)");
-    assert_eq!(inst, vec![0x98a40010]);
-    assert_eq!(disasm(&inst), "lwr $a0, 0x10($a1)");
-}
+test!(test_lw, "lw $a0, 0x10($a1)", 0x8ca40010);
+test!(test_lwl, "lwl $a0, 0x10($a1)", 0x88a40010);
+test!(test_lwr, "lwr $a0, 0x10($a1)", 0x98a40010);
 
 #[test]
 fn test_move() {
@@ -537,13 +519,7 @@ fn test_remu() {
     assert_eq!(inst, vec![0x00c001f4, 0x00a6001b, 0x00002010]);
 }
 
-#[test]
-fn test_sb() {
-    let inst = asm("sb $a0, 0x10($a1)");
-    assert_eq!(inst, vec![0xa0a40010]);
-    assert_eq!(disasm(&inst), "sb $a0, 0x10($a1)");
-}
-
+test!(test_sb, "sb $a0, 0x10($a1)", 0xa0a40010);
 test!(test_sc, "sc $a0, 0x10($a1)", 0xe0a40010);
 test!(test_scd, "scd $a0, 0x10($a1)", 0xf0a40010);
 test!(test_sd, "sd $a0, 0x10($a1)", 0xfca40010);
@@ -581,12 +557,7 @@ fn test_sgtu() {
     assert_eq!(inst, vec![0x00c5202b]);
 }
 
-#[test]
-fn test_sh() {
-    let inst = asm("sh $a0, 0x10($a1)");
-    assert_eq!(inst, vec![0xa4a40010]);
-    assert_eq!(disasm(&inst), "sh $a0, 0x10($a1)");
-}
+test!(test_sh, "sh $a0, 0x10($a1)", 0xa4a40010);
 
 #[test]
 fn test_sle() {
@@ -639,6 +610,7 @@ test!(test_swr, "swr $a0, 0x10($a1)", 0xb8a40010);
 test!(test_sync, "sync", 0x0000000f);
 test!(test_syscall, "syscall", 0x0000000c);
 test!(test_syscall_imm, "syscall 0x20", 0x0000080c);
+test!(test_teq, "teq $a0, $a1", 0x00850034);
 test!(test_teqi, "teqi $a0, 0x20", 0x048c0020);
 test!(test_tge, "tge $a0, $a1", 0x00850030);
 test!(test_tgei, "tgei $a0, 0x20", 0x04880020);
@@ -652,6 +624,7 @@ test!(test_tlt, "tlt $a0, $a1", 0x00850032);
 test!(test_tlti, "tlti $a0, 0x20", 0x048a0020);
 test!(test_tltiu, "tltiu $a0, 0x20", 0x048b0020);
 test!(test_tltu, "tltu $a0, $a1", 0x00850033);
+test!(test_tne, "tne $a0, $a1", 0x00850036);
 test!(test_tnei, "tnei $a0, 0x20", 0x048e0020);
 test!(test_xor, "xor $a0, $a1, $a2", 0x00a62026);
 test!(test_xori, "xori $a0, $a1, 0x8", 0x38a40008);
