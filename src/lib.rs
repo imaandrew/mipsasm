@@ -49,7 +49,9 @@ impl<'a> Mipsasm<'a> {
     pub fn disassemble(&self, input: &[u32]) -> Vec<String> {
         let x = disassembler::disassemble(input.to_vec());
         if self.debug {
-            x.iter().map(|x| format!("{:?}", x)).collect::<Vec<String>>()
+            x.iter()
+                .map(|x| format!("{:?}", x))
+                .collect::<Vec<String>>()
         } else {
             x.iter().map(|x| x.to_string()).collect::<Vec<String>>()
         }
