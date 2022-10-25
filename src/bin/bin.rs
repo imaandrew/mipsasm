@@ -1,4 +1,5 @@
 use clap::{Parser, ValueEnum};
+use mipsasm::Mipsasm;
 use std::collections::HashMap;
 use std::error;
 use std::fs;
@@ -40,12 +41,12 @@ fn main() -> Result<(), Box<dyn error::Error>> {
         None => String::new(),
     };
 
-    let symbols: HashMap<String, u32> = HashMap::from_iter(syms.lines().map(|s| {
+    let symbols: HashMap<&str, u32> = HashMap::from_iter(syms.lines().map(|s| {
         let mut parts = s.split('=');
         let name = parts.next().unwrap().trim();
         let value = parts.next().unwrap();
         let value = u32::from_str_radix(value.replace("0x", "").trim(), 16).unwrap();
-        (name.to_string(), value)
+        (name, value)
     }));
 
     let addr = cli.base_addr.replace("0x", "");
@@ -57,15 +58,13 @@ fn main() -> Result<(), Box<dyn error::Error>> {
     match cli.mode {
         Mode::Asm => {
             let data: String = fs::read_to_string(cli.input_file)?.parse()?;
-            let output = match mipsasm::parser::scan(&data, addr, Some(symbols)) {
+            let output = match Mipsasm::new().base(addr).symbols(symbols).assemble(&data) {
                 Ok(output) => output,
                 Err(e) => {
                     eprintln!("Error: {}", e);
                     std::process::exit(1);
                 }
             };
-
-            let output = mipsasm::assembler::assemble(output);
 
             if let Some(output_file) = cli.output_file {
                 let mut bytes = vec![];
@@ -89,7 +88,10 @@ fn main() -> Result<(), Box<dyn error::Error>> {
                     break;
                 }
             }
-            let output = mipsasm::disassembler::disassemble(words);
+            let output = Mipsasm::new()
+                .base(addr)
+                .symbols(symbols)
+                .disassemble(&words);
 
             if let Some(output_file) = cli.output_file {
                 let mut f = File::create(output_file)?;

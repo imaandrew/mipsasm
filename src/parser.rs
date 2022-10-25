@@ -2,6 +2,7 @@ use crate::ast;
 use once_cell::sync::Lazy;
 use regex::Regex;
 use std::collections::HashMap;
+use std::mem;
 use thiserror::Error;
 
 static COMMENT_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"(/{2}|;).*").unwrap());
@@ -36,27 +37,16 @@ pub enum ParserError {
     InvalidFloatCond(String),
 }
 
-pub fn scan(
-    input: &str,
-    base_addr: u32,
-    syms: Option<HashMap<String, u32>>,
-) -> Result<Vec<ast::Instruction>, ParserError> {
-    let mut parser = Parser::new(input, base_addr, syms.unwrap_or_default());
-    parser.scan()?;
-    parser.adjust_labels();
-    Ok(parser.insts)
-}
-
-struct Parser<'a> {
+pub struct Parser<'a> {
     input: &'a str,
     insts: Vec<ast::Instruction>,
     labels: HashMap<String, isize>,
     base_addr: u32,
-    syms: HashMap<String, u32>,
+    syms: &'a HashMap<&'a str, u32>,
 }
 
 impl<'a> Parser<'a> {
-    fn new(input: &str, base_addr: u32, syms: HashMap<String, u32>) -> Parser {
+    pub fn new(input: &'a str, base_addr: u32, syms: &'a HashMap<&'a str, u32>) -> Parser<'a> {
         Parser {
             input,
             insts: vec![],
@@ -66,12 +56,13 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn scan(&mut self) -> Result<(), ParserError> {
+    pub fn parse(&mut self) -> Result<Vec<ast::Instruction>, ParserError> {
         for line in self.input.lines() {
             let line = COMMENT_RE.replace_all(line, "");
             self.scan_line(&line)?;
         }
-        Ok(())
+        self.adjust_labels();
+        Ok(mem::take(&mut self.insts))
     }
 
     fn scan_line(&mut self, line: &str) -> Result<(), ParserError> {

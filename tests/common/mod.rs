@@ -1,9 +1,10 @@
+use mipsasm::Mipsasm;
+
 pub fn asm(inst: &str) -> Vec<u32> {
-    let x = mipsasm::parser::scan(inst, 0x80000000, None).unwrap();
-    mipsasm::assembler::assemble(x)
+    Mipsasm::new().base(0x80000000).assemble(inst).unwrap()
 }
 
 pub fn disasm(inst: &[u32]) -> String {
-    let x = mipsasm::disassembler::disassemble(inst.to_vec());
-    format!("{:?}", x.first().unwrap())
+    let x = Mipsasm::new().base(0x80000000).debug().disassemble(inst);
+    x.first().unwrap().clone()
 }
