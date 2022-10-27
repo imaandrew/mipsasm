@@ -35,6 +35,8 @@ pub enum ParserError {
     InvalidCopSubOpcode(String),
     #[error("invalid float compare condition `{0}`")]
     InvalidFloatCond(String),
+    #[error("branch `{0}` out of bounds")]
+    BranchOutOfBounds(String),
 }
 
 pub struct Parser<'a> {
@@ -61,7 +63,7 @@ impl<'a> Parser<'a> {
             let line = COMMENT_RE.replace_all(line, "");
             self.scan_line(&line)?;
         }
-        self.adjust_labels();
+        self.adjust_labels()?;
         Ok(mem::take(&mut self.insts))
     }
 
@@ -1058,7 +1060,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn adjust_labels(&mut self) {
+    fn adjust_labels(&mut self) -> Result<(), ParserError> {
         for i in 0..self.insts.len() {
             if let ast::Instruction::Immediate {
                 op,
@@ -1084,13 +1086,17 @@ impl<'a> Parser<'a> {
                 if !op.to_string().starts_with('b') {
                     continue;
                 }
-                
+
+                if *addr < self.base_addr || *addr > self.base_addr + self.insts.len() as u32 * 4 {
+                    return Err(ParserError::BranchOutOfBounds(format!("{:#010x}", *addr)));
+                }
+
                 let offset = *addr as isize - (i + 1) as isize;
                 self.insts[i] = ast::Instruction::Immediate {
                     op: *op,
                     rs: *rs,
                     rt: *rt,
-                    imm: ast::Immediate::Short((offset as i16) as u16),
+                    imm: ast::Immediate::Short(((offset / 4) as i16) as u16),
                 };
             } else if let ast::Instruction::Jump {
                 op,
@@ -1104,6 +1110,8 @@ impl<'a> Parser<'a> {
                 };
             }
         }
+
+        Ok(())
     }
 
     fn parse_immediate<T>(&self, imm: &str) -> Result<ast::Immediate, ParserError>
