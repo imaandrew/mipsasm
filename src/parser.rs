@@ -241,9 +241,7 @@ impl<'a> Parser<'a> {
             // |    op     |   rs    |  00000  |            offset             |
             // ------6----------5---------5-------------------16----------------
             //  Format:  op rs, offset
-            "bgez" | "bgezal" | "bgezall" | "bgezl" | "bltz" | "bltzal" | "bltzall" | "bltzl"
-            | "teqi" | "tgei" | "tgeiu" | "tlti" | "tltiu" | "tnei" | "beqz" | "bnez" | "beqzl"
-            | "bnezl" | "bgtz" | "bgtzl" | "blez" | "blezl" => {
+            "teqi" | "tgei" | "tgeiu" | "tlti" | "tltiu" | "tnei" => {
                 if args.len() != 2 {
                     return Err(ParserError::InvalidOperandCount {
                         line: inst.to_string(),
@@ -266,6 +264,32 @@ impl<'a> Parser<'a> {
                     rt: ast::Register::null(),
                     rs,
                     imm: self.parse_immediate::<i16>(imm)?,
+                })
+            }
+            "bgez" | "bgezal" | "bgezall" | "bgezl" | "bltz" | "bltzal" | "bltzall" | "bltzl"
+            | "beqz" | "bnez" | "beqzl" | "bnezl" | "bgtz" | "bgtzl" | "blez" | "blezl" => {
+                if args.len() != 2 {
+                    return Err(ParserError::InvalidOperandCount {
+                        line: inst.to_string(),
+                        expected: 2,
+                        found: args.len(),
+                    });
+                }
+                let rs = args
+                    .first()
+                    .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?
+                    .parse()
+                    .map_err(|_| ParserError::InvalidRegister(inst.to_string()))?;
+                let imm = args
+                    .get(1)
+                    .ok_or_else(|| ParserError::InvalidInstruction(inst.to_string()))?;
+                Ok(ast::Instruction::Immediate {
+                    op: op
+                        .parse()
+                        .map_err(|_| ParserError::InvalidOpcode(inst.to_string()))?,
+                    rt: ast::Register::null(),
+                    rs,
+                    imm: self.parse_immediate::<u32>(imm)?,
                 })
             }
             // -----------------------------------------------------------------
@@ -301,7 +325,7 @@ impl<'a> Parser<'a> {
                         .map_err(|_| ParserError::InvalidOpcode(inst.to_string()))?,
                     rt,
                     rs,
-                    imm: self.parse_immediate::<i16>(imm)?,
+                    imm: self.parse_immediate::<u32>(imm)?,
                 })
             }
             // -----------------------------------------------------------------
@@ -619,7 +643,7 @@ impl<'a> Parser<'a> {
                         .map_err(|_| ParserError::InvalidOpcode(inst.to_string()))?,
                     rs: ast::Register::null(),
                     rt: ast::Register::null(),
-                    imm: self.parse_immediate::<i16>(imm)?,
+                    imm: self.parse_immediate::<u32>(imm)?,
                 })
             }
             "li" => {
@@ -792,7 +816,7 @@ impl<'a> Parser<'a> {
                         .map_err(|_| ParserError::InvalidOpcode(inst.to_string()))?,
                     rs: ast::Register::null(),
                     rt: ast::Register::null(),
-                    imm: self.parse_immediate::<i16>(offset)?,
+                    imm: self.parse_immediate::<u32>(offset)?,
                 })
             }
             // -----------------------------------------------------------------
@@ -1049,6 +1073,24 @@ impl<'a> Parser<'a> {
                     rs: *rs,
                     rt: *rt,
                     imm: ast::Immediate::Short((*lbl_addr - (i + 1) as isize) as u16),
+                };
+            } else if let ast::Instruction::Immediate {
+                op,
+                rs,
+                rt,
+                imm: ast::Immediate::Int(addr),
+            } = &self.insts[i]
+            {
+                if !op.to_string().starts_with('b') {
+                    continue;
+                }
+                
+                let offset = *addr as isize - (i + 1) as isize;
+                self.insts[i] = ast::Instruction::Immediate {
+                    op: *op,
+                    rs: *rs,
+                    rt: *rt,
+                    imm: ast::Immediate::Short((offset as i16) as u16),
                 };
             } else if let ast::Instruction::Jump {
                 op,
