@@ -2,38 +2,6 @@ mod common;
 use common::{asm, disasm};
 use regex::Regex;
 
-macro_rules! test {
-    ($name:ident, $inst:expr, $expected:expr) => {
-        #[test]
-        fn $name() {
-            let inst = asm($inst);
-            assert_eq!(inst, vec![$expected]);
-            assert_eq!(disasm(&inst), $inst);
-        }
-    };
-}
-
-macro_rules! lbl_test {
-    ($name:ident, $inst:expr, $expected:expr) => {
-        #[test]
-        fn $name() {
-            let inst = asm($inst);
-            assert_eq!(inst, vec![$expected]);
-            let re = Regex::new(r"\w+:\n").unwrap();
-            if let Some(x) = re.find_iter($inst).last() {
-                let y = re.replace($inst, "");
-                assert_eq!(
-                    disasm(&inst),
-                    y.replace(&x.as_str().replace(":\n", ""), "-0x1")
-                );
-                return;
-            }
-
-            assert_eq!(disasm(&inst), $inst);
-        }
-    };
-}
-
 #[test]
 fn test_abs() {
     let inst = asm("abs $a0, $a1");
@@ -69,6 +37,13 @@ lbl_test!(test_bc0tl, "BC0TL:\nbc0tl BC0TL", 0x4103ffff);
 lbl_test!(test_bc1tl, "BC1TL:\nbc1tl BC1TL", 0x4503ffff);
 
 lbl_test!(test_beq, "BEQ:\nbeq $a0, $a1, BEQ", 0x1085ffff);
+
+#[test]
+fn beq_addr() {
+    let inst = asm("beq a0, a1, 0x80000008\nnop\nnop\nnop");
+    assert_eq!(inst, vec![0x10850001, 0x00000000, 0x00000000, 0x00000000]);
+}
+
 lbl_test!(test_beql, "BEQL:\nbeql $a0, $a1, BEQL", 0x5085ffff);
 
 #[test]
@@ -237,11 +212,17 @@ test!(test_daddiu, "daddiu $a0, $a1, 0x8", 0x64a40008);
 test!(test_daddu, "daddu $a0, $a1, $a2", 0x00a6202d);
 test!(test_ddiv, "ddiv $a0, $a1", 0x0085001e);
 
-// #[test]
-// fn test_ddiv_pseudo() {
-//     let inst = asm("ddiv $a0, $a1, $a2");
-//     assert_eq!(inst, vec![0x00c001f4, 0x00a6001e, 0x6401ffff, 0x14c10004, 0x64010001, 0x00010ffc, 0x012101b4, 0x00002012]);
-// }
+#[test]
+fn test_ddiv_pseudo() {
+    let inst = asm("ddiv $a0, $a1, $a2");
+    assert_eq!(
+        inst,
+        vec![
+            0x00c001f4, 0x00a6001e, 0x6401ffff, 0x14c10004, 0x64010001, 0x00010ffc, 0x00a101b4,
+            0x00002012
+        ]
+    );
+}
 
 test!(test_ddivu, "ddivu $a0, $a1", 0x0085001f);
 
@@ -343,11 +324,17 @@ fn test_dnegu() {
     assert_eq!(inst, vec![0x0005202f]);
 }
 
-//#[test]
-//fn test_drem() {
-//    let inst = asm("drem $a0, $a1, $a2");
-//    assert_eq!(inst, vec![0x00c001f4, 0x00a6001e, 0x6401ffff, 0x14c10004, 0x64010001, 0x00010ffc, 0x012101b4, 0x00002010]);
-//}
+#[test]
+fn test_drem() {
+    let inst = asm("drem $a0, $a1, $a2");
+    assert_eq!(
+        inst,
+        vec![
+            0x00c001f4, 0x00a6001e, 0x6401ffff, 0x14c10004, 0x64010001, 0x00010ffc, 0x00A101B4,
+            0x00002010
+        ]
+    );
+}
 
 #[test]
 fn test_dremu() {
@@ -628,79 +615,3 @@ test!(test_tne, "tne $a0, $a1", 0x00850036);
 test!(test_tnei, "tnei $a0, 0x20", 0x048e0020);
 test!(test_xor, "xor $a0, $a1, $a2", 0x00a62026);
 test!(test_xori, "xori $a0, $a1, 0x8", 0x38a40008);
-
-// Float instructions
-test!(test_abs_s, "abs.s $fa0, $fa1", 0x46007305);
-test!(test_abs_d, "abs.d $fa0, $fa1", 0x46207305);
-test!(test_add_s, "add.s $fa0, $fa1, $ft0", 0x46047300);
-test!(test_add_d, "add.d $fa0, $fa1, $ft0", 0x46247300);
-test!(test_c_eq_s, "c.eq.s $fa1, $ft0", 0x46047032);
-test!(test_c_eq_d, "c.eq.d $fa1, $ft0", 0x46247032);
-test!(test_c_f_s, "c.f.s $fa1, $ft0", 0x46047030);
-test!(test_c_f_d, "c.f.d $fa1, $ft0", 0x46247030);
-test!(test_c_le_s, "c.le.s $fa1, $ft0", 0x4604703e);
-test!(test_c_le_d, "c.le.d $fa1, $ft0", 0x4624703e);
-test!(test_c_lt_s, "c.lt.s $fa1, $ft0", 0x4604703c);
-test!(test_c_lt_d, "c.lt.d $fa1, $ft0", 0x4624703c);
-test!(test_c_nge_s, "c.nge.s $fa1, $ft0", 0x4604703d);
-test!(test_c_nge_d, "c.nge.d $fa1, $ft0", 0x4624703d);
-test!(test_c_ngl_s, "c.ngl.s $fa1, $ft0", 0x4604703b);
-test!(test_c_ngl_d, "c.ngl.d $fa1, $ft0", 0x4624703b);
-test!(test_c_ngle_s, "c.ngle.s $fa1, $ft0", 0x46047039);
-test!(test_c_ngle_d, "c.ngle.d $fa1, $ft0", 0x46247039);
-test!(test_c_ngt_s, "c.ngt.s $fa1, $ft0", 0x4604703f);
-test!(test_c_ngt_d, "c.ngt.d $fa1, $ft0", 0x4624703f);
-test!(test_c_ole_s, "c.ole.s $fa1, $ft0", 0x46047036);
-test!(test_c_ole_d, "c.ole.d $fa1, $ft0", 0x46247036);
-test!(test_c_olt_s, "c.olt.s $fa1, $ft0", 0x46047034);
-test!(test_c_olt_d, "c.olt.d $fa1, $ft0", 0x46247034);
-test!(test_c_seq_s, "c.seq.s $fa1, $ft0", 0x4604703a);
-test!(test_c_seq_d, "c.seq.d $fa1, $ft0", 0x4624703a);
-test!(test_c_sf_s, "c.sf.s $fa1, $ft0", 0x46047038);
-test!(test_c_sf_d, "c.sf.d $fa1, $ft0", 0x46247038);
-test!(test_c_ueq_s, "c.ueq.s $fa1, $ft0", 0x46047033);
-test!(test_c_ueq_d, "c.ueq.d $fa1, $ft0", 0x46247033);
-test!(test_c_ule_s, "c.ule.s $fa1, $ft0", 0x46047037);
-test!(test_c_ule_d, "c.ule.d $fa1, $ft0", 0x46247037);
-test!(test_c_ult_s, "c.ult.s $fa1, $ft0", 0x46047035);
-test!(test_c_ult_d, "c.ult.d $fa1, $ft0", 0x46247035);
-test!(test_c_un_s, "c.un.s $fa1, $ft0", 0x46047031);
-test!(test_c_un_d, "c.un.d $fa1, $ft0", 0x46247031);
-test!(test_ceil_l_s, "ceil.l.s $fa0, $fa1", 0x4600730a);
-test!(test_ceil_l_d, "ceil.l.d $fa0, $fa1", 0x4620730a);
-test!(test_ceil_w_s, "ceil.w.s $fa0, $fa1", 0x4600730e);
-test!(test_ceil_w_d, "ceil.w.d $fa0, $fa1", 0x4620730e);
-test!(test_cvt_d_l, "cvt.d.l $fa0, $fa1", 0x46a07321);
-test!(test_cvt_d_s, "cvt.d.s $fa0, $fa1", 0x46007321);
-test!(test_cvt_d_w, "cvt.d.w $fa0, $fa1", 0x46807321);
-test!(test_cvt_l_d, "cvt.l.d $fa0, $fa1", 0x46207325);
-test!(test_cvt_l_s, "cvt.l.s $fa0, $fa1", 0x46007325);
-test!(test_cvt_s_d, "cvt.s.d $fa0, $fa1", 0x46207320);
-test!(test_cvt_s_l, "cvt.s.l $fa0, $fa1", 0x46a07320);
-test!(test_cvt_s_w, "cvt.s.w $fa0, $fa1", 0x46807320);
-test!(test_cvt_w_d, "cvt.w.d $fa0, $fa1", 0x46207324);
-test!(test_cvt_w_s, "cvt.w.s $fa0, $fa1", 0x46007324);
-test!(test_div_s, "div.s $fa0, $fa1, $ft0", 0x46047303);
-test!(test_div_d, "div.d $fa0, $fa1, $ft0", 0x46247303);
-test!(test_floor_l_s, "floor.l.s $fa0, $fa1", 0x4600730b);
-test!(test_floor_l_d, "floor.l.d $fa0, $fa1", 0x4620730b);
-test!(test_floor_w_s, "floor.w.s $fa0, $fa1", 0x4600730f);
-test!(test_floor_w_d, "floor.w.d $fa0, $fa1", 0x4620730f);
-test!(test_mul_s, "mul.s $fa0, $fa1, $ft0", 0x46047302);
-test!(test_mul_d, "mul.d $fa0, $fa1, $ft0", 0x46247302);
-test!(test_mov_s, "mov.s $fa0, $fa1", 0x46007306);
-test!(test_mov_d, "mov.d $fa0, $fa1", 0x46207306);
-test!(test_neg_s, "neg.s $fa0, $fa1", 0x46007307);
-test!(test_neg_d, "neg.d $fa0, $fa1", 0x46207307);
-test!(test_round_l_s, "round.l.s $fa0, $fa1", 0x46007308);
-test!(test_round_l_d, "round.l.d $fa0, $fa1", 0x46207308);
-test!(test_round_w_s, "round.w.s $fa0, $fa1", 0x4600730c);
-test!(test_round_w_d, "round.w.d $fa0, $fa1", 0x4620730c);
-test!(test_sqrt_s, "sqrt.s $fa0, $fa1", 0x46007304);
-test!(test_sqrt_d, "sqrt.d $fa0, $fa1", 0x46207304);
-test!(test_sub_s, "sub.s $fa0, $fa1, $ft0", 0x46047301);
-test!(test_sub_d, "sub.d $fa0, $fa1, $ft0", 0x46247301);
-test!(test_trunc_l_s, "trunc.l.s $fa0, $fa1", 0x46007309);
-test!(test_trunc_l_d, "trunc.l.d $fa0, $fa1", 0x46207309);
-test!(test_trunc_w_s, "trunc.w.s $fa0, $fa1", 0x4600730d);
-test!(test_trunc_w_d, "trunc.w.d $fa0, $fa1", 0x4620730d);
