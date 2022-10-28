@@ -29,10 +29,6 @@ pub enum ParserError {
     InvalidTargetAddress(String),
     #[error("invalid immediate `{0}`")]
     InvalidImmediate(String),
-    #[error("invalid coprocessor `{0}`")]
-    InvalidCopNumber(String),
-    #[error("invalid coprocessor sub-opcode `{0}`")]
-    InvalidCopSubOpcode(String),
     #[error("invalid float compare condition `{0}`")]
     InvalidFloatCond(String),
     #[error("branch `{0}` out of bounds")]
