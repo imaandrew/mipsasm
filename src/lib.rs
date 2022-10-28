@@ -11,15 +11,19 @@
 //!
 //! ## Example
 //!
-//! ```
+//! ```rust
 //! use mipsasm::Mipsasm;
+//! # use std::error::Error;
 //!
+//! # fn main() -> Result<(), String> {
 //! let asm = "add $a0, $a1, $a2";
-//! let bin = Mipsasm::new().base(0x80000000).assemble(asm).unwrap();
+//! let bin = Mipsasm::new().base(0x80000000).assemble(asm)?;
 //! assert_eq!(bin, vec![0x00a62020]);
 //!
 //! let insts = Mipsasm::new().base(0x80000000).disassemble(&bin);
-//! assert_eq!(insts.first().unwrap(), "add        $a0, $a1, $a2");
+//! assert_eq!(insts, vec!["add        $a0, $a1, $a2"]);
+//! # Ok(())
+//! # }
 //! ```
 
 mod assembler;
