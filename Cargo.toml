@@ -6,7 +6,7 @@ repository = "https://github.com/imaandrew/mipsasm/"
 version = "1.0.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
-keywords = ["mipsasm", "mips", "assembler", "assembly", "n64", "nintendo64"]
+keywords = ["mipsasm", "mips", "assembler", "assembly", "n64"]
 categories = ["command-line-utilities", "encoding", "hardware-support"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
