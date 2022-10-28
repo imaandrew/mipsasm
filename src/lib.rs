@@ -47,13 +47,31 @@ impl<'a> Mipsasm<'a> {
     }
 
     pub fn disassemble(&self, input: &[u32]) -> Vec<String> {
-        let x = disassembler::disassemble(input.to_vec());
+        let mut x = disassembler::disassemble(input.to_vec());
+        self.match_syms(&mut x);
         if self.debug {
             x.iter()
                 .map(|x| format!("{:?}", x))
                 .collect::<Vec<String>>()
         } else {
             x.iter().map(|x| x.to_string()).collect::<Vec<String>>()
+        }
+    }
+
+    fn match_syms(&self, insts: &mut Vec<ast::Instruction>) {
+        for i in insts {
+            if let ast::Instruction::Jump {
+                op,
+                target: ast::Target::Address(addr),
+            } = i
+            {
+                if let Some(sym) = self.syms.iter().find(|(_, v)| **v == *addr) {
+                    *i = ast::Instruction::Jump {
+                        op: *op,
+                        target: ast::Target::Label(sym.0.to_string()),
+                    };
+                }
+            }
         }
     }
 }

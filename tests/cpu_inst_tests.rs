@@ -1,4 +1,7 @@
 mod common;
+use mipsasm::Mipsasm;
+use std::collections::HashMap;
+
 use common::{asm, disasm};
 use regex::Regex;
 
@@ -381,6 +384,27 @@ test!(test_dsubu, "dsubu $a0, $a1, $a2", 0x00a6202f);
 test!(test_eret, "eret", 0x42000018);
 test!(test_j, "j 0x80000000", 0x08000000);
 test!(test_jal, "jal 0x80000000", 0x0c000000);
+
+#[test]
+fn test_jal_sym() {
+    let mut x: HashMap<&str, u32> = HashMap::new();
+    x.insert("func", 0x80123454);
+
+    let asm = Mipsasm::new()
+        .base(0x80000000)
+        .symbols(x.clone())
+        .assemble("jal func")
+        .unwrap();
+    assert_eq!(asm, vec![0x0c048d15]);
+
+    let disasm = Mipsasm::new()
+        .base(0x80000000)
+        .symbols(x)
+        .debug()
+        .disassemble(&asm);
+    assert_eq!(disasm.first().unwrap(), "jal func");
+}
+
 test!(test_jr, "jr $ra", 0x03e00008);
 test!(test_jalr, "jalr $ra", 0x03e0f809);
 test!(test_jalr_two_args, "jalr $a0, $a1", 0x00a02009);

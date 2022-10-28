@@ -219,6 +219,12 @@ impl fmt::Display for Instruction {
             } => {
                 write!(f, "{:11}{:#X?}", op, target)
             }
+            Instruction::Jump {
+                op,
+                target: Target::Label(lbl),
+            } => {
+                write!(f, "{:11}{}", op, lbl)
+            }
             Instruction::Register { op, rs, rt, rd, sa } => match op {
                 R::Sync => write!(f, "{}", op),
                 R::Add
