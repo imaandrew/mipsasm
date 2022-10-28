@@ -41,6 +41,7 @@ fn main() -> Result<(), Box<dyn error::Error>> {
         None => String::new(),
     };
 
+    // Parse symbols from string as format "name=0x12345678"
     let symbols: HashMap<&str, u32> = HashMap::from_iter(syms.lines().map(|s| {
         let mut parts = s.split('=');
         let name = parts.next().unwrap().trim();
@@ -80,6 +81,7 @@ fn main() -> Result<(), Box<dyn error::Error>> {
             let mut words = vec![];
             let mut bytes = fs::read(cli.input_file)?;
             loop {
+                // Copy bytes from the input file as words
                 let mut word = [0; 4];
                 word.copy_from_slice(&bytes[0..4]);
                 words.push(u32::from_be_bytes(word));

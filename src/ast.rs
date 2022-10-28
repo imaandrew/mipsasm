@@ -21,7 +21,7 @@ impl Target {
     pub fn as_u32(&self) -> u32 {
         match self {
             Target::Label(name) => {
-                panic!("{}", name)
+                panic!("Cannot convert label `{}` to u32", name)
             }
             Target::Address(addr) => *addr,
         }
@@ -41,7 +41,7 @@ impl Immediate {
         match self {
             Immediate::Short(i) => *i as u32,
             Immediate::Int(i) => *i,
-            x => panic!("{:?}", x),
+            x => panic!("Cannot convert `{:?}` to u32", x),
         }
     }
 
@@ -50,7 +50,7 @@ impl Immediate {
             Immediate::Short(i) => *i as u64,
             Immediate::Int(i) => *i as u64,
             Immediate::Long(i) => *i,
-            x => panic!("{:?}", x),
+            x => panic!("Cannot convert `{:?}` to u64", x),
         }
     }
 
@@ -80,19 +80,20 @@ impl Immediate {
                     Immediate::Long(val.to_i64().unwrap() as u64)
                 }
             }
-            _ => panic!("invalid integer size"),
+            _ => panic!("Invalid integer size: {}", T::zero().count_zeros()),
         }
     }
 }
 
 struct Signed(u16);
-
+// Format an i16 as a sign-aware hex string
+// https://stackoverflow.com/a/44712309
 impl fmt::LowerHex for Signed {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let val = self.0 as i16;
         let p = if f.alternate() { "0x" } else { "" };
-        let x = format!("{}{:x}", p, val.abs());
-        f.pad_integral(val >= 0, "", &x)
+        let x = format!("{:x}", val.abs());
+        f.pad_integral(val >= 0, p, &x)
     }
 }
 

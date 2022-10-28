@@ -5,6 +5,7 @@ use std::collections::HashMap;
 use std::mem;
 use thiserror::Error;
 
+// Regex to match anything after a comment
 static COMMENT_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"(/{2}|;).*").unwrap());
 
 #[derive(Error, Debug)]
@@ -1056,6 +1057,7 @@ impl<'a> Parser<'a> {
         }
     }
 
+    // Convert each label to an absolute immediate or address
     fn adjust_labels(&mut self) -> Result<(), ParserError> {
         for i in 0..self.insts.len() {
             if let ast::Instruction::Immediate {
@@ -1070,6 +1072,7 @@ impl<'a> Parser<'a> {
                     op: *op,
                     rs: *rs,
                     rt: *rt,
+                    // Calculate the offset from the label to the current instruction
                     imm: ast::Immediate::Short((*lbl_addr - (i + 1) as isize) as u16),
                 };
             } else if let ast::Instruction::Immediate {
@@ -1083,6 +1086,7 @@ impl<'a> Parser<'a> {
                     continue;
                 }
 
+                // Make sure the address is within the bounds of the program
                 if *addr < self.base_addr || *addr > self.base_addr + self.insts.len() as u32 * 4 {
                     return Err(ParserError::BranchOutOfBounds(format!("{:#010x}", *addr)));
                 }
