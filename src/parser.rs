@@ -467,9 +467,14 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_inst(&self, line: &str) -> Result<ast::Instruction, ParserError> {
-        let (op, arg) = line
-            .split_once(' ')
-            .ok_or_else(|| error!(self, InvalidInstruction))?;
+        let (op, arg) = match line.split_once(' ') {
+            Some((op, arg)) => (op, arg),
+            None => (line, ""),
+        };
+
+        if line.is_empty() {
+            return Err(error!(self, InvalidInstruction));
+        }
 
         let args = arg.split(',').collect::<Vec<&str>>();
 
@@ -1169,7 +1174,7 @@ impl<'a> Parser<'a> {
                     rs: *rs,
                     rt: *rt,
                     // Calculate the offset from the label to the current instruction
-                    imm: ast::Immediate::Short((*lbl_addr - (i + 1)) as u16),
+                    imm: ast::Immediate::Short((*lbl_addr as isize - (i + 1) as isize) as u16),
                 };
             } else if let ast::Instruction::Immediate {
                 op,
