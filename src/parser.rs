@@ -412,6 +412,7 @@ pub struct Parser<'a> {
     base_addr: u32,
     syms: &'a HashMap<&'a str, u32>,
     line_num: usize,
+    errors: Vec<ParserError>,
 }
 
 impl<'a> Parser<'a> {
@@ -423,20 +424,25 @@ impl<'a> Parser<'a> {
             base_addr,
             syms,
             line_num: 0,
+            errors: vec![],
         }
     }
 
-    pub fn parse(&mut self) -> Result<Vec<ast::Instruction>, ParserError> {
+    pub fn parse(&mut self) -> Result<Vec<ast::Instruction>, Vec<ParserError>> {
         for i in 0..self.input.len() {
             self.line_num += 1;
             let l = COMMENT_RE.replace_all(self.input.get(i).unwrap().trim(), "");
-            self.scan_line(&l)?;
+            self.scan_line(&l).unwrap_or_else(|e| self.errors.push(e));
         }
-        self.adjust_labels()?;
-        Ok(mem::take(&mut self.insts)
-            .into_iter()
-            .map(|(_, i)| i)
-            .collect())
+        self.adjust_labels().unwrap_or_else(|e| self.errors.push(e));
+        if self.errors.is_empty() {
+            Ok(mem::take(&mut self.insts)
+                .into_iter()
+                .map(|(_, i)| i)
+                .collect())
+        } else {
+            Err(mem::take(&mut self.errors))
+        }
     }
 
     fn scan_line(&mut self, line: &str) -> Result<(), ParserError> {

@@ -14,8 +14,9 @@
 //! ```rust
 //! use mipsasm::Mipsasm;
 //! # use std::error::Error;
+//! # use mipsasm::ParserError;
 //!
-//! # fn main() -> Result<(), String> {
+//! # fn main() -> Result<(), Vec<ParserError>> {
 //! let asm = "add $a0, $a1, $a2";
 //! let bin = Mipsasm::new().base(0x80000000).assemble(asm)?;
 //! assert_eq!(bin, vec![0x00a62020]);
@@ -30,6 +31,8 @@ mod assembler;
 mod ast;
 mod disassembler;
 mod parser;
+
+pub use parser::ParserError;
 
 use std::collections::HashMap;
 
@@ -119,12 +122,9 @@ impl<'a> Mipsasm<'a> {
     ///   addi $t0, $t1, 0x1234
     /// ");
     /// ```
-    pub fn assemble(&self, input: &str) -> Result<Vec<u32>, String> {
+    pub fn assemble(&self, input: &str) -> Result<Vec<u32>, Vec<ParserError>> {
         let mut parser = parser::Parser::new(input, self.base_addr, &self.syms);
-        Ok(assembler::assemble(match parser.parse() {
-            Ok(ast) => ast,
-            Err(e) => return Err(format!("{}", e)),
-        }))
+        Ok(assembler::assemble(parser.parse()?))
     }
 
     /// Disassembles a set of MIPS instructions.
