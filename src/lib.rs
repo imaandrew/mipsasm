@@ -121,7 +121,10 @@ impl<'a> Mipsasm<'a> {
     /// ```
     pub fn assemble(&self, input: &str) -> Result<Vec<u32>, String> {
         let mut parser = parser::Parser::new(input, self.base_addr, &self.syms);
-        Ok(assembler::assemble(parser.parse().unwrap()))
+        Ok(assembler::assemble(match parser.parse() {
+            Ok(ast) => ast,
+            Err(e) => return Err(format!("{}", e)),
+        }))
     }
 
     /// Disassembles a set of MIPS instructions.

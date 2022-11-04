@@ -517,21 +517,21 @@ impl FromStr for Register {
     type Err = RegParseError;
 
     fn from_str(reg: &str) -> Result<Self, Self::Err> {
-        let reg = reg.trim().trim_start_matches('$');
+        let r = reg.trim().trim_start_matches('$');
 
         let reg_regex = Regex::new(r"r\d{1,2}").unwrap();
 
-        if reg_regex.find(reg).is_some() {
-            let reg = reg.trim_start_matches('r');
-            let reg = reg.parse::<u32>().unwrap();
-            return Register::try_from(reg);
+        if reg_regex.find(r).is_some() {
+            let r = r.trim_start_matches('r');
+            let r = r.parse::<u32>().unwrap();
+            return Register::try_from(r);
         }
 
-        if let Ok(x) = reg.parse::<u32>() {
+        if let Ok(x) = r.parse::<u32>() {
             return Register::try_from(x);
         }
 
-        match reg.to_lowercase().as_str() {
+        match r.to_lowercase().as_str() {
             "zero" | "r0" => Ok(Register::Zero),
             "at" => Ok(Register::At),
             "v0" => Ok(Register::V0),
@@ -564,12 +564,7 @@ impl FromStr for Register {
             "sp" => Ok(Register::Sp),
             "fp" => Ok(Register::Fp),
             "ra" => Ok(Register::Ra),
-            e => {
-                if let Ok(x) = u32::from_str_radix(reg, 16) {
-                    return Register::try_from(x);
-                }
-                Err(RegParseError::RegParseError(e.to_string()))
-            }
+            _ => Err(RegParseError::RegParseError(reg.to_string())),
         }
     }
 }

@@ -62,7 +62,7 @@ fn main() -> Result<(), Box<dyn error::Error>> {
             let output = match Mipsasm::new().base(addr).symbols(symbols).assemble(&data) {
                 Ok(output) => output,
                 Err(e) => {
-                    eprintln!("Error: {}", e);
+                    eprintln!("{}", e);
                     std::process::exit(1);
                 }
             };
