@@ -115,54 +115,44 @@ pub struct Line {
 
 #[derive(Debug)]
 pub enum ParserError {
-    // #[error("label `{0}` defined multiple times")]
     MultipleLabelDefinition {
         line: Line,
         label: String,
         first: Line,
     },
-    //#[error("label `{0}` must start with a letter")]
     InvalidLabel {
         line: Line,
         label: String,
     },
-    //#[error("invalid instruction `{0}`")]
     InvalidInstruction {
         line: Line,
     },
-    //#[error("invalid number of operands `{line}`\n Expected {expected} operands, found {found}")]
     InvalidOperandCount {
         line: Line,
         expected: usize,
         found: usize,
         ops: String,
     },
-    //#[error("invalid opcode `{0}`")]
     InvalidOpcode {
         line: Line,
         opcode: String,
     },
-    //#[error("invalid register `{0}`")]
     InvalidRegister {
         line: Line,
         register: String,
     },
-    //#[error("invalid target address `{0}`")]
     InvalidTargetAddress {
         line: Line,
         address: String,
     },
-    //#[error("invalid immediate `{0}`")]
     InvalidImmediate {
         line: Line,
         immediate: String,
     },
-    //#[error("invalid float compare condition `{0}`")]
     InvalidFloatCond {
         line: Line,
         cond: String,
     },
-    //#[error("branch `{0}` out of bounds")]
     BranchOutOfBounds {
         line: Line,
         branch: String,
