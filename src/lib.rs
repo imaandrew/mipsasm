@@ -30,9 +30,10 @@
 mod assembler;
 mod ast;
 mod disassembler;
+mod error;
 mod parser;
 
-pub use parser::ParserError;
+pub use error::ParserError;
 
 use std::collections::HashMap;
 

@@ -121,6 +121,47 @@ pub enum Instruction {
 type I = ITypeOp;
 type R = RTypeOp;
 
+impl Instruction {
+    pub fn has_delay_slot(&self) -> bool {
+        match self {
+            Instruction::Jump { .. } => true,
+            Instruction::Immediate { op, .. } => match op {
+                I::Beqz
+                | I::Bgtz
+                | I::Bgtzl
+                | I::Blez
+                | I::Blezl
+                | I::Bnez
+                | I::Beq
+                | I::Beql
+                | I::Bne
+                | I::Bnel
+                | I::Bgez
+                | I::Bgezal
+                | I::Bgezall
+                | I::Bgezl
+                | I::Bltz
+                | I::Bltzal
+                | I::Bltzall
+                | I::Bltzl
+                | I::Bc0f
+                | I::Bc1f
+                | I::Bc0fl
+                | I::Bc1fl
+                | I::Bc0t
+                | I::Bc1t
+                | I::Bc0tl
+                | I::Bc1tl => true,
+                _ => false,
+            },
+            Instruction::Register { op, .. } => match op {
+                R::Jr | R::Jalr => true,
+                _ => false,
+            },
+        }
+    }
+}
+
 impl fmt::Display for Instruction {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match &self {
