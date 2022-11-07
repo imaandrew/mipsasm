@@ -125,8 +125,7 @@ impl Instruction {
     pub fn has_delay_slot(&self) -> bool {
         match self {
             Instruction::Jump { .. } => true,
-            Instruction::Immediate { op, .. } => match op {
-                I::Beqz
+            Instruction::Immediate { op, .. } => matches!(op, I::Beqz
                 | I::Bgtz
                 | I::Bgtzl
                 | I::Blez
@@ -151,13 +150,8 @@ impl Instruction {
                 | I::Bc0t
                 | I::Bc1t
                 | I::Bc0tl
-                | I::Bc1tl => true,
-                _ => false,
-            },
-            Instruction::Register { op, .. } => match op {
-                R::Jr | R::Jalr => true,
-                _ => false,
-            },
+                | I::Bc1tl),
+            Instruction::Register { op, .. } => matches!(op, R::Jr | R::Jalr),
         }
     }
 }
