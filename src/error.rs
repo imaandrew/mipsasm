@@ -112,6 +112,24 @@ macro_rules! warning {
             ),
         }
     };
+    ($self:ident, UnalignedBranch, $target:expr) => {
+        ParserWarning::UnalignedBranch {
+            line: Line::new(
+                $self.line_num,
+                $self.input.get($self.line_num - 1).unwrap().to_string(),
+            ),
+            offset: $target,
+        }
+    };
+    ($self:ident, UnalignedJump, $target:expr) => {
+        ParserWarning::UnalignedJump {
+            line: Line::new(
+                $self.line_num,
+                $self.input.get($self.line_num - 1).unwrap().to_string(),
+            ),
+            target: $target,
+        }
+    };
 }
 
 #[derive(Debug)]
@@ -129,6 +147,8 @@ impl Line {
 #[derive(Debug)]
 pub enum ParserWarning {
     InvalidInstructionInDelaySlot { line: Line, delay_slot_inst: Line },
+    UnalignedBranch { line: Line, offset: String },
+    UnalignedJump { line: Line, target: String },
 }
 
 impl fmt::Display for ParserWarning {
@@ -173,6 +193,54 @@ impl fmt::Display for ParserWarning {
                         "delay slot occurs after this instruction",
                         false,
                         content.trim()
+                    )
+                )
+            }
+            Self::UnalignedBranch {
+                line: Line { num, content },
+                offset,
+            } => {
+                let margin = num.to_string().len();
+                writeln!(
+                    f,
+                    "warning: branch offset `{}` is not aligned to a 4-byte boundary",
+                    offset
+                )?;
+                writeln!(
+                    f,
+                    "{}",
+                    fmt_line(
+                        *num,
+                        content,
+                        margin,
+                        true,
+                        "offset is not divisible by 4",
+                        false,
+                        offset
+                    )
+                )
+            }
+            Self::UnalignedJump {
+                line: Line { num, content },
+                target,
+            } => {
+                let margin = num.to_string().len();
+                writeln!(
+                    f,
+                    "warning: jump target `{}` is not aligned to a 4-byte boundary",
+                    target
+                )?;
+                writeln!(
+                    f,
+                    "{}",
+                    fmt_line(
+                        *num,
+                        content,
+                        margin,
+                        true,
+                        "target is not divisible by 4",
+                        false,
+                        target
                     )
                 )
             }

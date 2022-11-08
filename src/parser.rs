@@ -220,12 +220,16 @@ impl<'a> Parser<'a> {
                 let rs = args.first().unwrap().parse().map_err(
                     |ast::RegParseError::RegParseError(e)| error!(self, InvalidRegister, e),
                 )?;
-                let imm = args.get(1).unwrap();
+                let offset = args.get(1).unwrap();
+                let imm = self.parse_immediate::<u32>(offset)?;
+                if !imm.is_label() && imm.as_u32() % 4 != 0 {
+                    eprintln!("{}", warning!(self, UnalignedBranch, offset.to_string()));
+                }
                 Ok(ast::Instruction::Immediate {
                     op: op.parse().unwrap(),
                     rt: ast::Register::null(),
                     rs,
-                    imm: self.parse_immediate::<u32>(imm)?,
+                    imm,
                 })
             }
             // -----------------------------------------------------------------
@@ -250,12 +254,16 @@ impl<'a> Parser<'a> {
                 let rt = args.get(1).unwrap().parse().map_err(
                     |ast::RegParseError::RegParseError(e)| error!(self, InvalidRegister, e),
                 )?;
-                let imm = args.get(2).unwrap();
+                let offset = args.get(2).unwrap();
+                let imm = self.parse_immediate::<u32>(offset)?;
+                if !imm.is_label() && imm.as_u32() % 4 != 0 {
+                    eprintln!("{}", warning!(self, UnalignedBranch, offset.to_string()));
+                }
                 Ok(ast::Instruction::Immediate {
                     op: op.parse().unwrap(),
                     rt,
                     rs,
-                    imm: self.parse_immediate::<u32>(imm)?,
+                    imm,
                 })
             }
             // -----------------------------------------------------------------
@@ -272,10 +280,14 @@ impl<'a> Parser<'a> {
                         eprintln!("{}", warning!(self, InvalidInstructionInDelaySlot))
                     }
                 }
-                let target = args.first().unwrap().trim();
+                let target_str = args.first().unwrap().trim();
+                let target = self.parse_target(target_str)?;
+                if !target.is_label() && target.as_u32() % 4 != 0 {
+                    eprintln!("{}", warning!(self, UnalignedJump, target_str.to_string()));
+                }
                 Ok(ast::Instruction::Jump {
                     op: op.parse().unwrap(),
-                    target: self.parse_target(target)?,
+                    target,
                 })
             }
             // -----------------------------------------------------------------
@@ -484,12 +496,16 @@ impl<'a> Parser<'a> {
                     }
                 }
 
-                let imm = args.first().unwrap();
+                let offset = args.first().unwrap();
+                let imm = self.parse_immediate::<u32>(offset)?;
+                if !imm.is_label() && imm.as_u32() % 4 != 0 {
+                    eprintln!("{}", warning!(self, UnalignedBranch, offset.to_string()));
+                }
                 Ok(ast::Instruction::Immediate {
                     op: op.parse().unwrap(),
                     rs: ast::Register::null(),
                     rt: ast::Register::null(),
-                    imm: self.parse_immediate::<u32>(imm)?,
+                    imm,
                 })
             }
             "li" => {
@@ -612,11 +628,15 @@ impl<'a> Parser<'a> {
                     }
                 }
                 let offset = args.first().unwrap();
+                let imm = self.parse_immediate::<u32>(offset)?;
+                if !imm.is_label() && imm.as_u32() % 4 != 0 {
+                    eprintln!("{}", warning!(self, UnalignedBranch, offset.to_string()));
+                }
                 Ok(ast::Instruction::Immediate {
                     op: op.parse().unwrap(),
                     rs: ast::Register::null(),
                     rt: ast::Register::null(),
-                    imm: self.parse_immediate::<u32>(offset)?,
+                    imm,
                 })
             }
             // -----------------------------------------------------------------
@@ -821,12 +841,16 @@ impl<'a> Parser<'a> {
             } = &self.insts[i].1
             {
                 let lbl_addr = self.labels.get(lbl.as_str()).unwrap();
+                let imm = ast::Immediate::Short((*lbl_addr as isize - (i + 1) as isize) as u16);
+                if imm.as_u32() % 4 != 0 {
+                    eprintln!("{}", warning!(self, UnalignedBranch, lbl.to_string()));
+                }
                 self.insts[i].1 = ast::Instruction::Immediate {
                     op: *op,
                     rs: *rs,
                     rt: *rt,
                     // Calculate the offset from the label to the current instruction
-                    imm: ast::Immediate::Short((*lbl_addr as isize - (i + 1) as isize) as u16),
+                    imm,
                 };
             } else if let ast::Instruction::Immediate {
                 op,

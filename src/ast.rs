@@ -26,6 +26,10 @@ impl Target {
             Target::Address(addr) => *addr,
         }
     }
+
+    pub fn is_label(&self) -> bool {
+        matches!(self, Target::Label(_))
+    }
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -52,6 +56,10 @@ impl Immediate {
             Immediate::Long(i) => *i,
             x => panic!("Cannot convert `{:?}` to u64", x),
         }
+    }
+
+    pub fn is_label(&self) -> bool {
+        matches!(self, Immediate::Label(_))
     }
 
     pub fn new<T>(val: T) -> Self
@@ -125,32 +133,35 @@ impl Instruction {
     pub fn has_delay_slot(&self) -> bool {
         match self {
             Instruction::Jump { .. } => true,
-            Instruction::Immediate { op, .. } => matches!(op, I::Beqz
-                | I::Bgtz
-                | I::Bgtzl
-                | I::Blez
-                | I::Blezl
-                | I::Bnez
-                | I::Beq
-                | I::Beql
-                | I::Bne
-                | I::Bnel
-                | I::Bgez
-                | I::Bgezal
-                | I::Bgezall
-                | I::Bgezl
-                | I::Bltz
-                | I::Bltzal
-                | I::Bltzall
-                | I::Bltzl
-                | I::Bc0f
-                | I::Bc1f
-                | I::Bc0fl
-                | I::Bc1fl
-                | I::Bc0t
-                | I::Bc1t
-                | I::Bc0tl
-                | I::Bc1tl),
+            Instruction::Immediate { op, .. } => matches!(
+                op,
+                I::Beqz
+                    | I::Bgtz
+                    | I::Bgtzl
+                    | I::Blez
+                    | I::Blezl
+                    | I::Bnez
+                    | I::Beq
+                    | I::Beql
+                    | I::Bne
+                    | I::Bnel
+                    | I::Bgez
+                    | I::Bgezal
+                    | I::Bgezall
+                    | I::Bgezl
+                    | I::Bltz
+                    | I::Bltzal
+                    | I::Bltzall
+                    | I::Bltzl
+                    | I::Bc0f
+                    | I::Bc1f
+                    | I::Bc0fl
+                    | I::Bc1fl
+                    | I::Bc0t
+                    | I::Bc1t
+                    | I::Bc0tl
+                    | I::Bc1tl
+            ),
             Instruction::Register { op, .. } => matches!(op, R::Jr | R::Jalr),
         }
     }
