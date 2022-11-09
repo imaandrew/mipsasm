@@ -37,6 +37,7 @@ pub enum Immediate {
     Short(u16),
     Int(u32),
     Long(u64),
+    LocalLabel(String),
     Label(String),
 }
 
@@ -59,7 +60,7 @@ impl Immediate {
     }
 
     pub fn is_label(&self) -> bool {
-        matches!(self, Immediate::Label(_))
+        matches!(self, Immediate::Label(_) | Immediate::LocalLabel(_))
     }
 
     pub fn new<T>(val: T) -> Self

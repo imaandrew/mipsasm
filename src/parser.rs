@@ -1,10 +1,12 @@
 use crate::ast;
 use crate::error::{Line, ParserError, ParserWarning};
 use crate::{error, warning};
+use indexmap::IndexMap;
 use once_cell::sync::Lazy;
 use regex::Regex;
 use std::collections::HashMap;
 use std::mem;
+use std::ops::Index;
 
 // Regex to match anything after a comment
 static COMMENT_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"(/{2}|;).*").unwrap());
@@ -12,7 +14,9 @@ static COMMENT_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"(/{2}|;).*").unwrap()
 pub struct Parser<'a> {
     input: Vec<&'a str>,
     insts: Vec<(usize, ast::Instruction)>,
-    labels: HashMap<String, usize>,
+    labels: IndexMap<String, usize>,
+    local_labels: HashMap<String, (usize, String)>,
+    local_labels_dropped: HashMap<String, Vec<(usize, String)>>,
     base_addr: u32,
     syms: &'a HashMap<&'a str, u32>,
     line_num: usize,
@@ -24,7 +28,9 @@ impl<'a> Parser<'a> {
         Parser {
             input: input.lines().collect(),
             insts: vec![],
-            labels: HashMap::new(),
+            labels: IndexMap::new(),
+            local_labels: HashMap::new(),
+            local_labels_dropped: HashMap::new(),
             base_addr,
             syms,
             line_num: 0,
@@ -37,6 +43,19 @@ impl<'a> Parser<'a> {
             self.line_num += 1;
             let l = COMMENT_RE.replace_all(self.input.get(i).unwrap().trim(), "");
             self.scan_line(&l).unwrap_or_else(|e| self.errors.push(e));
+        }
+        if !self.local_labels_dropped.is_empty() {
+            let local_labels = mem::take(&mut self.local_labels);
+            for (k, v) in local_labels {
+                if let std::collections::hash_map::Entry::Vacant(e) =
+                    self.local_labels_dropped.entry(k.clone())
+                {
+                    e.insert(vec![v]);
+                } else {
+                    self.local_labels_dropped.get_mut(&k).unwrap().push(v);
+                }
+            }
+            self.local_labels.clear()
         }
         self.adjust_labels().unwrap_or_else(|e| self.errors.push(e));
         if self.errors.is_empty() {
@@ -51,8 +70,31 @@ impl<'a> Parser<'a> {
 
     fn scan_line(&mut self, line: &str) -> Result<(), ParserError> {
         if line.ends_with(':') {
-            self.labels
-                .insert(self.parse_label(line)?, self.insts.len());
+            if line.starts_with("@@") {
+                let last_label = self
+                    .labels
+                    .last()
+                    .ok_or_else(|| error!(self, LocalLabelOutsideGlobal, self.line_num, line))?;
+                self.local_labels.insert(
+                    self.parse_label(line.strip_suffix(':').unwrap().to_string())?,
+                    (self.insts.len(), last_label.0.clone()),
+                );
+            } else {
+                self.labels.insert(
+                    self.parse_label(line.strip_suffix(':').unwrap().to_string())?,
+                    self.insts.len(),
+                );
+                let local_labels = mem::take(&mut self.local_labels);
+                for (k, v) in local_labels {
+                    if let std::collections::hash_map::Entry::Vacant(e) =
+                        self.local_labels_dropped.entry(k.clone())
+                    {
+                        e.insert(vec![v]);
+                    } else {
+                        self.local_labels_dropped.get_mut(&k).unwrap().push(v);
+                    }
+                }
+            }
         } else if !line.is_empty() {
             self.insts.push((self.line_num, self.parse_inst(line)?));
         }
@@ -60,8 +102,7 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
-    fn parse_label(&self, line: &str) -> Result<String, ParserError> {
-        let label = line.trim_end_matches(':').to_string();
+    fn parse_label(&self, label: String) -> Result<String, ParserError> {
         if label.chars().next().unwrap().is_numeric() {
             return Err(error!(self, InvalidLabel, label));
         }
@@ -832,7 +873,7 @@ impl<'a> Parser<'a> {
 
     // Convert each label to an absolute immediate or address
     fn adjust_labels(&mut self) -> Result<(), ParserError> {
-        for i in 0..self.insts.len() {
+        'a: for i in 0..self.insts.len() {
             if let ast::Instruction::Immediate {
                 op,
                 rs,
@@ -842,9 +883,6 @@ impl<'a> Parser<'a> {
             {
                 let lbl_addr = self.labels.get(lbl.as_str()).unwrap();
                 let imm = ast::Immediate::Short((*lbl_addr as isize - (i + 1) as isize) as u16);
-                if imm.as_u32() % 4 != 0 {
-                    eprintln!("{}", warning!(self, UnalignedBranch, lbl.to_string()));
-                }
                 self.insts[i].1 = ast::Instruction::Immediate {
                     op: *op,
                     rs: *rs,
@@ -852,6 +890,30 @@ impl<'a> Parser<'a> {
                     // Calculate the offset from the label to the current instruction
                     imm,
                 };
+            } else if let ast::Instruction::Immediate {
+                op,
+                rs,
+                rt,
+                imm: ast::Immediate::LocalLabel(loc),
+            } = &self.insts[i].1
+            {
+                let lbls = self.local_labels_dropped.get(loc.as_str()).unwrap();
+                for (addr, lbl) in lbls {
+                    let (lower, upper) = self.get_label_scope(lbl).unwrap();
+                    if i < lower || i > upper {
+                        continue;
+                    }
+                    let imm = ast::Immediate::Short((*addr as isize - (i + 1) as isize) as u16);
+                    self.insts[i].1 = ast::Instruction::Immediate {
+                        op: *op,
+                        rs: *rs,
+                        rt: *rt,
+                        // Calculate the offset from the label to the current instruction
+                        imm,
+                    };
+                    continue 'a;
+                }
+                return Err(error!(self, LocalLabelOutsideGlobal, self.insts[i].0, loc));
             } else if let ast::Instruction::Immediate {
                 op,
                 rs,
@@ -902,6 +964,10 @@ impl<'a> Parser<'a> {
         T: num::PrimInt + std::str::FromStr,
     {
         let imm = imm.trim();
+
+        if imm.starts_with("@@") {
+            return Ok(ast::Immediate::LocalLabel(imm.to_string()));
+        }
 
         if self.labels.contains_key(imm) {
             return Ok(ast::Immediate::Label(imm.to_string()));
@@ -975,6 +1041,17 @@ impl<'a> Parser<'a> {
             "le" => Ok(14),
             "ngt" => Ok(15),
             _ => Err(error!(self, InvalidFloatCond, cond)),
+        }
+    }
+
+    fn get_label_scope(&self, lbl: &str) -> Result<(usize, usize), ParserError> {
+        let label = self.labels.get(lbl).unwrap();
+        let next_index = self.labels.get_index_of(lbl).unwrap() + 1;
+        if next_index >= self.labels.len() {
+            Ok((*label, self.insts.len()))
+        } else {
+            let next_label = self.labels.index(next_index);
+            Ok((*label, *next_label))
         }
     }
 }

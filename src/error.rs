@@ -96,6 +96,15 @@ macro_rules! error {
             bounds: $bounds,
         }
     };
+    ($self:ident, LocalLabelOutsideGlobal, $line_num:expr, $label:expr) => {
+        ParserError::LocalLabelOutsideGlobal {
+            line: Line::new(
+                $line_num,
+                $self.input.get($line_num - 1).unwrap().to_string(),
+            ),
+            label: $label.to_string(),
+        }
+    };
 }
 
 #[macro_export]
@@ -293,6 +302,10 @@ pub enum ParserError {
         branch: String,
         bounds: (u32, u32),
     },
+    LocalLabelOutsideGlobal {
+        line: Line,
+        label: String,
+    },
 }
 
 impl fmt::Display for ParserError {
@@ -480,6 +493,22 @@ impl fmt::Display for ParserError {
                         true,
                         branch
                     )
+                )
+            }
+            Self::LocalLabelOutsideGlobal {
+                line: Line { num, content },
+                label,
+            } => {
+                let margin = num.to_string().len();
+                writeln!(
+                    f,
+                    "\x1b[91merror\x1b[0m: local label `{}` outside global label",
+                    label
+                )?;
+                writeln!(
+                    f,
+                    "{}",
+                    fmt_line(*num, content, margin, false, "", true, label)
                 )
             }
         }
