@@ -259,7 +259,53 @@ impl fmt::Display for Instruction {
                         rs
                     )
                 }
-                _ => todo!(),
+                e => panic!("Unhandled immediate instruction: {:?}", e),
+            },
+            Instruction::Immediate {
+                op,
+                rs,
+                rt,
+                imm: Immediate::Label(l),
+            }
+            | Instruction::Immediate {
+                op,
+                rs,
+                rt,
+                imm: Immediate::LocalLabel(l),
+            } => match op {
+                I::Beqz | I::Bgtz | I::Bgtzl | I::Blez | I::Blezl | I::Bnez => {
+                    write!(f, "{:11}${}, {}", op, rs, l)
+                }
+                I::Beq | I::Beql | I::Bne | I::Bnel => {
+                    write!(f, "{:11}${}, ${}, {}", op, rs, rt, l)
+                }
+                I::Bgez
+                | I::Bgezal
+                | I::Bgezall
+                | I::Bgezl
+                | I::Bltz
+                | I::Bltzal
+                | I::Bltzall
+                | I::Bltzl
+                | I::Teqi
+                | I::Tgei
+                | I::Tgeiu
+                | I::Tlti
+                | I::Tltiu
+                | I::Tnei => {
+                    write!(f, "{:11}${}, {}", op, rs, l)
+                }
+                I::Bc0f
+                | I::Bc1f
+                | I::Bc0fl
+                | I::Bc1fl
+                | I::Bc0t
+                | I::Bc1t
+                | I::Bc0tl
+                | I::Bc1tl => {
+                    write!(f, "{:11}{}", op, l)
+                }
+                e => panic!("Unhandled immediate instruction: {:?}", e),
             },
             Instruction::Jump {
                 op,
@@ -457,7 +503,7 @@ impl fmt::Display for Instruction {
                         )
                     }
                 }
-                _ => todo!(),
+                e => panic!("{:?} not implemented", e),
             },
             e => panic!("Invalid instruction: {:?}", e),
         }

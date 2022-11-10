@@ -57,7 +57,8 @@ impl<'a> Parser<'a> {
             }
             self.local_labels.clear()
         }
-        self.adjust_labels().unwrap_or_else(|e| self.errors.push(e));
+        self.adjust_labels()
+            .unwrap_or_else(|e| e.into_iter().for_each(|e| self.errors.push(e)));
         if self.errors.is_empty() {
             Ok(mem::take(&mut self.insts)
                 .into_iter()
@@ -71,14 +72,18 @@ impl<'a> Parser<'a> {
     fn scan_line(&mut self, line: &str) -> Result<(), ParserError> {
         if line.ends_with(':') {
             if line.starts_with("@@") {
-                let last_label = self
-                    .labels
-                    .last()
-                    .ok_or_else(|| error!(self, LocalLabelOutsideGlobal, self.line_num, line))?;
-                self.local_labels.insert(
-                    self.parse_label(line.strip_suffix(':').unwrap().to_string())?,
-                    (self.insts.len(), last_label.0.clone()),
-                );
+                let last_label = self.labels.last();
+                if let Some((last_label, _)) = last_label {
+                    self.local_labels.insert(
+                        self.parse_label(line.strip_suffix(':').unwrap().to_string())?,
+                        (self.insts.len(), last_label.clone()),
+                    );
+                } else {
+                    self.local_labels.insert(
+                        self.parse_label(line.strip_suffix(':').unwrap().to_string())?,
+                        (self.insts.len(), String::new()),
+                    );
+                }
             } else {
                 self.labels.insert(
                     self.parse_label(line.strip_suffix(':').unwrap().to_string())?,
@@ -872,7 +877,8 @@ impl<'a> Parser<'a> {
     }
 
     // Convert each label to an absolute immediate or address
-    fn adjust_labels(&mut self) -> Result<(), ParserError> {
+    fn adjust_labels(&mut self) -> Result<(), Vec<ParserError>> {
+        let mut errors = Vec::new();
         'a: for i in 0..self.insts.len() {
             if let ast::Instruction::Immediate {
                 op,
@@ -897,8 +903,12 @@ impl<'a> Parser<'a> {
                 imm: ast::Immediate::LocalLabel(loc),
             } = &self.insts[i].1
             {
-                let lbls = self.local_labels_dropped.get(loc.as_str()).unwrap();
-                for (addr, lbl) in lbls {
+                let lbls = self.local_labels_dropped.get(loc.as_str());
+                if lbls.is_none() {
+                    errors.push(error!(self, UndefinedLabel, self.insts[i].0, loc));
+                    continue 'a;
+                }
+                for (addr, lbl) in lbls.unwrap() {
                     let (lower, upper) = self.get_label_scope(lbl).unwrap();
                     if i < lower || i > upper {
                         continue;
@@ -913,7 +923,7 @@ impl<'a> Parser<'a> {
                     };
                     continue 'a;
                 }
-                return Err(error!(self, LocalLabelOutsideGlobal, self.insts[i].0, loc));
+                errors.push(error!(self, LocalLabelOutOfScope, self.insts[i].0, loc));
             } else if let ast::Instruction::Immediate {
                 op,
                 rs,
@@ -927,7 +937,7 @@ impl<'a> Parser<'a> {
 
                 // Make sure the address is within the bounds of the program
                 if *addr < self.base_addr || *addr > self.base_addr + self.insts.len() as u32 * 4 {
-                    return Err(error!(
+                    errors.push(error!(
                         self,
                         BranchOutOfBounds,
                         self.insts[i].0,
@@ -948,14 +958,21 @@ impl<'a> Parser<'a> {
                 target: ast::Target::Label(lbl),
             } = &self.insts[i].1
             {
-                let lbl_addr = self.labels.get(lbl.as_str()).unwrap();
+                let lbl_addr = self.labels.get(lbl.as_str());
+                if lbl_addr.is_none() {
+                    errors.push(error!(self, UndefinedLabel, self.insts[i].0, lbl));
+                    continue;
+                }
                 self.insts[i].1 = ast::Instruction::Jump {
                     op: *op,
-                    target: ast::Target::Address(self.base_addr + *lbl_addr as u32 * 4),
+                    target: ast::Target::Address(self.base_addr + *lbl_addr.unwrap() as u32 * 4),
                 };
             }
         }
 
+        if !errors.is_empty() {
+            return Err(errors);
+        }
         Ok(())
     }
 
@@ -1045,6 +1062,9 @@ impl<'a> Parser<'a> {
     }
 
     fn get_label_scope(&self, lbl: &str) -> Result<(usize, usize), ParserError> {
+        if lbl.is_empty() {
+            return Ok((0, self.insts.len()));
+        }
         let label = self.labels.get(lbl).unwrap();
         let next_index = self.labels.get_index_of(lbl).unwrap() + 1;
         if next_index >= self.labels.len() {

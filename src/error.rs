@@ -96,8 +96,17 @@ macro_rules! error {
             bounds: $bounds,
         }
     };
-    ($self:ident, LocalLabelOutsideGlobal, $line_num:expr, $label:expr) => {
-        ParserError::LocalLabelOutsideGlobal {
+    ($self:ident, LocalLabelOutOfScope, $line_num:expr, $label:expr) => {
+        ParserError::LocalLabelOutOfScope {
+            line: Line::new(
+                $line_num,
+                $self.input.get($line_num - 1).unwrap().to_string(),
+            ),
+            label: $label.to_string(),
+        }
+    };
+    ($self:ident, UndefinedLabel, $line_num:expr, $label:expr) => {
+        ParserError::UndefinedLabel {
             line: Line::new(
                 $line_num,
                 $self.input.get($line_num - 1).unwrap().to_string(),
@@ -302,7 +311,11 @@ pub enum ParserError {
         branch: String,
         bounds: (u32, u32),
     },
-    LocalLabelOutsideGlobal {
+    LocalLabelOutOfScope {
+        line: Line,
+        label: String,
+    },
+    UndefinedLabel {
         line: Line,
         label: String,
     },
@@ -495,20 +508,32 @@ impl fmt::Display for ParserError {
                     )
                 )
             }
-            Self::LocalLabelOutsideGlobal {
+            Self::LocalLabelOutOfScope {
                 line: Line { num, content },
                 label,
             } => {
                 let margin = num.to_string().len();
                 writeln!(
                     f,
-                    "\x1b[91merror\x1b[0m: local label `{}` outside global label",
+                    "\x1b[91merror\x1b[0m: local label `{}` used outside of its scope",
                     label
                 )?;
                 writeln!(
                     f,
                     "{}",
                     fmt_line(*num, content, margin, false, "", true, label)
+                )
+            }
+            Self::UndefinedLabel {
+                line: Line { num, content },
+                label,
+            } => {
+                let margin = num.to_string().len();
+                writeln!(f, "\x1b[91merror\x1b[0m: label `{}` is not defined", label)?;
+                writeln!(
+                    f,
+                    "{}",
+                    fmt_line(*num, content, margin, false, "used here", true, label)
                 )
             }
         }
