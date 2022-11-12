@@ -1,9 +1,13 @@
 use regex::Regex;
+use once_cell::sync::Lazy;
 use std::convert::{From, TryFrom};
 use std::fmt;
 use std::str::FromStr;
 use strum_macros::{Display, EnumString};
 use thiserror::Error;
+
+static REG_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"r\d{1,2}").unwrap());
+static SPACE_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"\s+").unwrap());
 
 #[derive(Error, Debug)]
 pub enum RegParseError {
@@ -512,8 +516,7 @@ impl fmt::Display for Instruction {
 
 impl fmt::Debug for Instruction {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let re = Regex::new(r"\s+").unwrap();
-        write!(f, "{}", re.replace_all(&self.to_string(), " "))
+        write!(f, "{}", SPACE_RE.replace_all(&self.to_string(), " "))
     }
 }
 
@@ -612,9 +615,8 @@ impl FromStr for Register {
     fn from_str(reg: &str) -> Result<Self, Self::Err> {
         let r = reg.trim().trim_start_matches('$');
 
-        let reg_regex = Regex::new(r"r\d{1,2}").unwrap();
 
-        if reg_regex.find(r).is_some() {
+        if REG_RE.find(r).is_some() {
             let r = r.trim_start_matches('r');
             let r = r.parse::<u32>().unwrap();
             return Register::try_from(r);

@@ -10,6 +10,9 @@ use std::ops::Index;
 
 // Regex to match anything after a comment
 static COMMENT_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"(/{2}|;).*").unwrap());
+static OFFSET_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r".+\s*\(").unwrap());
+static BASE_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"\(.*?\)").unwrap());
+static IMM_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"\(.*\)").unwrap());
 
 pub struct Parser<'a> {
     input: Vec<&'a str>,
@@ -134,9 +137,6 @@ impl<'a> Parser<'a> {
 
         let args = arg.split(',').collect::<Vec<&str>>();
 
-        let offset_regex = Regex::new(r".+\s*\(").unwrap();
-        let base_regex = Regex::new(r"\(.*?\)").unwrap();
-
         match op.to_lowercase().trim() {
             // -----------------------------------------------------------------
             // |    op     |  base   |   rt    |             offset            |
@@ -157,7 +157,7 @@ impl<'a> Parser<'a> {
                     args.first().unwrap().parse().unwrap()
                 };
                 let x = args.get(1).unwrap();
-                let base = base_regex
+                let base = BASE_RE
                     .find_iter(x)
                     .last()
                     .unwrap()
@@ -166,7 +166,7 @@ impl<'a> Parser<'a> {
                     .trim()
                     .parse()
                     .unwrap();
-                if let Some(x) = offset_regex.find(x) {
+                if let Some(x) = OFFSET_RE.find(x) {
                     Ok(ast::Instruction::Immediate {
                         op: op.parse().unwrap(),
                         rs: base,
@@ -756,7 +756,7 @@ impl<'a> Parser<'a> {
                         error!(self, InvalidRegister, e)
                     })?;
                 let x = args.get(1).unwrap();
-                let base = base_regex
+                let base = BASE_RE
                     .find_iter(x)
                     .last()
                     .unwrap()
@@ -767,7 +767,7 @@ impl<'a> Parser<'a> {
                     .map_err(|ast::RegParseError::RegParseError(e)| {
                         error!(self, InvalidRegister, e)
                     })?;
-                if let Some(x) = offset_regex.find(x) {
+                if let Some(x) = OFFSET_RE.find(x) {
                     Ok(ast::Instruction::Immediate {
                         op: op.parse().unwrap(),
                         rs: base,
@@ -990,8 +990,7 @@ impl<'a> Parser<'a> {
             return Ok(ast::Immediate::Label(imm.to_string()));
         }
 
-        let imm_regex = Regex::new(r"\(.*\)").unwrap();
-        if let Some(x) = imm_regex.find(imm) {
+        if let Some(x) = IMM_RE.find(imm) {
             let x = self.parse_target(&x.as_str().replace(&['(', ')'][..], ""))?;
             match &imm[..3] {
                 "%hi" => {
