@@ -456,6 +456,7 @@ pub fn assemble(insts: Vec<ast::Instruction>) -> Vec<u32> {
                 R::TruncWD => 0b010001 << 26 | 0b10001 << 21 | rs.as_num() << 11 | rd.as_num() << 6 | 0b001101,
                 R::Xor => rs.as_num() << 21 | rt.as_num() << 16 | rd.as_num() << 11 | 0b100110,
             }
+            ast::Instruction::Bytes { bytes } => bytes.as_u32(),
         };
         bytes.push(i);
     }

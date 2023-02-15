@@ -783,6 +783,11 @@ impl<'a> Parser<'a> {
                     })
                 }
             }
+            ".word" => {
+                Ok(ast::Instruction::Bytes {
+                    bytes: self.parse_immediate::<u32>(arg)?
+                })
+            }
             _ => match &op.to_lowercase()[..op.len() - 2] {
                 // -----------------------------------------------------------------
                 // |   COP1    |   fmt   |   ft    |   fs    |   fd    |    op     |

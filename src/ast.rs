@@ -129,6 +129,9 @@ pub enum Instruction {
         rd: Register,
         sa: u32,
     },
+    Bytes {
+        bytes: Immediate,
+    },
 }
 
 type I = ITypeOp;
@@ -168,6 +171,7 @@ impl Instruction {
                     | I::Bc1tl
             ),
             Instruction::Register { op, .. } => matches!(op, R::Jr | R::Jalr),
+            Instruction::Bytes { .. } => false,
         }
     }
 }
@@ -509,6 +513,7 @@ impl fmt::Display for Instruction {
                 }
                 e => panic!("{:?} not implemented", e),
             },
+            Instruction::Bytes { bytes } => write!(f, ".word     {:#x?}", bytes),
             e => panic!("Invalid instruction: {:?}", e),
         }
     }
