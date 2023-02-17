@@ -103,7 +103,7 @@ struct Signed(u16);
 // https://stackoverflow.com/a/44712309
 impl fmt::LowerHex for Signed {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let val = self.0 as i16;
+        let val = self.0 as i32;
         let p = if f.alternate() { "0x" } else { "" };
         let x = format!("{:x}", val.abs());
         f.pad_integral(val >= 0, p, &x)
