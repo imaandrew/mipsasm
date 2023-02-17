@@ -1,5 +1,5 @@
-use regex::Regex;
 use once_cell::sync::Lazy;
+use regex::Regex;
 use std::convert::{From, TryFrom};
 use std::fmt;
 use std::str::FromStr;
@@ -619,7 +619,6 @@ impl FromStr for Register {
 
     fn from_str(reg: &str) -> Result<Self, Self::Err> {
         let r = reg.trim().trim_start_matches('$');
-
 
         if REG_RE.find(r).is_some() {
             let r = r.trim_start_matches('r');

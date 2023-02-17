@@ -3,7 +3,7 @@ use crate::ast;
 type R = ast::Register;
 
 #[rustfmt::skip]
-pub fn disassemble(bytes: Vec<u32>) -> Vec<ast::Instruction> {
+pub fn disassemble(bytes: Vec<u32>, base_addr: u32) -> Vec<ast::Instruction> {
     let mut insts = vec![];
 
     for inst in bytes {
@@ -15,7 +15,7 @@ pub fn disassemble(bytes: Vec<u32>) -> Vec<ast::Instruction> {
         let code = (inst >> 6) & 0xFFFFF;
         let funct = inst & 0x3F;
         let imm = inst & 0xFFFF;
-        let target = ((inst & 0x3FFFFFF) << 2) | 0x80000000;
+        let target = ((inst & 0x3FFFFFF) << 2) | (base_addr & !0xFFFFFFF);
         
         let i = match op {
             0 => {

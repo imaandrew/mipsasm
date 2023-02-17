@@ -140,7 +140,7 @@ impl<'a> Mipsasm<'a> {
     /// assert_eq!(instructions, vec!["mult       $a0, $a1"]);
     /// ```
     pub fn disassemble(&self, input: &[u32]) -> Vec<String> {
-        let mut x = disassembler::disassemble(input.to_vec());
+        let mut x = disassembler::disassemble(input.to_vec(), self.base_addr);
         self.match_syms(&mut x);
         if self.debug {
             x.iter()
