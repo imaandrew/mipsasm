@@ -8,6 +8,50 @@ use std::collections::HashMap;
 use std::mem;
 use std::ops::Index;
 
+macro_rules! inst {
+    (Imm, $op:expr, $rs:expr, $rt:expr, $imm:expr) => {
+        ast::Instruction::Immediate {
+            op: $op.parse().unwrap(),
+            rs: $rs,
+            rt: $rt,
+            imm: $imm,
+            bytes: 0,
+        }
+    };
+    (Jump, $op:expr, $target:expr) => {
+        ast::Instruction::Jump {
+            op: $op.parse().unwrap(),
+            target: $target,
+            bytes: 0,
+        }
+    };
+    (Reg, $op:expr, $rs:expr, $rt:expr, $rd:expr) => {
+        ast::Instruction::Register {
+            op: $op.parse().unwrap(),
+            rs: $rs,
+            rt: $rt,
+            rd: $rd,
+            sa: 0,
+            bytes: 0,
+        }
+    };
+    (Reg, $op:expr, $rs:expr, $rt:expr, $rd:expr, $sa:expr) => {
+        ast::Instruction::Register {
+            op: $op.parse().unwrap(),
+            rs: $rs,
+            rt: $rt,
+            rd: $rd,
+            sa: $sa,
+            bytes: 0,
+        }
+    };
+    (Bytes, $imm:expr) => {
+        ast::Instruction::Bytes {
+            bytes: ast::Immediate::Int($imm),
+        }
+    };
+}
+
 // Regex to match anything after a comment
 static COMMENT_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"(/{2}|;).*").unwrap());
 static OFFSET_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r".+\s*\(").unwrap());
@@ -167,19 +211,15 @@ impl<'a> Parser<'a> {
                     .parse()
                     .unwrap();
                 if let Some(x) = OFFSET_RE.find(x) {
-                    Ok(ast::Instruction::Immediate {
-                        op: op.parse().unwrap(),
-                        rs: base,
+                    Ok(inst!(
+                        Imm,
+                        op,
+                        base,
                         rt,
-                        imm: self.parse_immediate::<i16>(&x.as_str()[..x.as_str().len() - 1])?,
-                    })
+                        self.parse_immediate::<i16>(&x.as_str()[..x.as_str().len() - 1])?
+                    ))
                 } else {
-                    Ok(ast::Instruction::Immediate {
-                        op: op.parse().unwrap(),
-                        rs: base,
-                        rt,
-                        imm: self.parse_immediate::<i16>("0")?,
-                    })
+                    Ok(inst!(Imm, op, base, rt, self.parse_immediate::<i16>("0")?))
                 }
             }
             // -----------------------------------------------------------------
@@ -199,19 +239,9 @@ impl<'a> Parser<'a> {
                 )?;
                 let imm = args.get(2).unwrap();
                 if op == "andi" || op == "ori" || op == "xori" {
-                    Ok(ast::Instruction::Immediate {
-                        op: op.parse().unwrap(),
-                        rt,
-                        rs,
-                        imm: self.parse_immediate::<u16>(imm)?,
-                    })
+                    Ok(inst!(Imm, op, rs, rt, self.parse_immediate::<u16>(imm)?))
                 } else {
-                    Ok(ast::Instruction::Immediate {
-                        op: op.parse().unwrap(),
-                        rt,
-                        rs,
-                        imm: self.parse_immediate::<i16>(imm)?,
-                    })
+                    Ok(inst!(Imm, op, rs, rt, self.parse_immediate::<i16>(imm)?))
                 }
             }
             // -----------------------------------------------------------------
@@ -226,12 +256,13 @@ impl<'a> Parser<'a> {
                     |ast::RegParseError::RegParseError(e)| error!(self, InvalidRegister, e),
                 )?;
                 let imm = args.get(1).unwrap();
-                Ok(ast::Instruction::Immediate {
-                    op: op.parse().unwrap(),
+                Ok(inst!(
+                    Imm,
+                    op,
+                    ast::Register::null(),
                     rt,
-                    rs: ast::Register::null(),
-                    imm: self.parse_immediate::<u16>(imm)?,
-                })
+                    self.parse_immediate::<u16>(imm)?
+                ))
             }
             // -----------------------------------------------------------------
             // |    op     |   rs    |  00000  |            offset             |
@@ -245,12 +276,13 @@ impl<'a> Parser<'a> {
                     |ast::RegParseError::RegParseError(e)| error!(self, InvalidRegister, e),
                 )?;
                 let imm = args.get(1).unwrap();
-                Ok(ast::Instruction::Immediate {
-                    op: op.parse().unwrap(),
-                    rt: ast::Register::null(),
+                Ok(inst!(
+                    Imm,
+                    op,
                     rs,
-                    imm: self.parse_immediate::<i16>(imm)?,
-                })
+                    ast::Register::null(),
+                    self.parse_immediate::<i16>(imm)?
+                ))
             }
             "bgez" | "bgezal" | "bgezall" | "bgezl" | "bltz" | "bltzal" | "bltzall" | "bltzl"
             | "beqz" | "bnez" | "beqzl" | "bnezl" | "bgtz" | "bgtzl" | "blez" | "blezl" => {
@@ -271,12 +303,7 @@ impl<'a> Parser<'a> {
                 if !imm.is_label() && imm.as_u32() % 4 != 0 {
                     eprintln!("{}", warning!(self, UnalignedBranch, offset.to_string()));
                 }
-                Ok(ast::Instruction::Immediate {
-                    op: op.parse().unwrap(),
-                    rt: ast::Register::null(),
-                    rs,
-                    imm,
-                })
+                Ok(inst!(Imm, op, rs, ast::Register::null(), imm))
             }
             // -----------------------------------------------------------------
             // |    op     |   rs    |   rt    |            offset             |
@@ -305,12 +332,7 @@ impl<'a> Parser<'a> {
                 if !imm.is_label() && imm.as_u32() % 4 != 0 {
                     eprintln!("{}", warning!(self, UnalignedBranch, offset.to_string()));
                 }
-                Ok(ast::Instruction::Immediate {
-                    op: op.parse().unwrap(),
-                    rt,
-                    rs,
-                    imm,
-                })
+                Ok(inst!(Imm, op, rs, rt, imm))
             }
             // -----------------------------------------------------------------
             // |    op     |                       target                      |
@@ -331,22 +353,19 @@ impl<'a> Parser<'a> {
                 if !target.is_label() && target.as_u32() % 4 != 0 {
                     eprintln!("{}", warning!(self, UnalignedJump, target_str.to_string()));
                 }
-                Ok(ast::Instruction::Jump {
-                    op: op.parse().unwrap(),
-                    target,
-                })
+                Ok(inst!(Jump, op, target))
             }
             // -----------------------------------------------------------------
             // |  SPECIAL  |      0000 0000 0000 000     |  stype  |    op     |
             // ------6-------------------15-------------------5---------6-------
             //  Format:  op          (stype = 0 implied)
-            "nop" | "sync" => Ok(ast::Instruction::Register {
-                op: op.parse().unwrap(),
-                rd: ast::Register::null(),
-                rs: ast::Register::null(),
-                rt: ast::Register::null(),
-                sa: 0,
-            }),
+            "nop" | "sync" => Ok(inst!(
+                Reg,
+                op,
+                ast::Register::null(),
+                ast::Register::null(),
+                ast::Register::null()
+            )),
             // -----------------------------------------------------------------
             // |  SPECIAL  |   rs    |   rt    |   rd    |  00000  |    op     |
             // ------6----------5---------5---------5---------5----------6------
@@ -367,13 +386,7 @@ impl<'a> Parser<'a> {
                 let rt = args.get(2).unwrap().parse().map_err(
                     |ast::RegParseError::RegParseError(e)| error!(self, InvalidRegister, e),
                 )?;
-                Ok(ast::Instruction::Register {
-                    op: op.parse().unwrap(),
-                    rd,
-                    rs,
-                    rt,
-                    sa: 0,
-                })
+                Ok(inst!(Reg, op, rs, rt, rd))
             }
             // -----------------------------------------------------------------
             // |  SPECIAL  |  00000  |   rt    |    rd   |   sa    |    op     |
@@ -390,18 +403,19 @@ impl<'a> Parser<'a> {
                     |ast::RegParseError::RegParseError(e)| error!(self, InvalidRegister, e),
                 )?;
                 let sa = args.get(2).unwrap().trim();
-                Ok(ast::Instruction::Register {
-                    op: op.parse().unwrap(),
-                    rd,
-                    rs: ast::Register::null(),
+                Ok(inst!(
+                    Reg,
+                    op,
+                    ast::Register::null(),
                     rt,
-                    sa: if sa.ends_with('`') || !sa.contains("0x") {
+                    rd,
+                    if sa.ends_with('`') || !sa.contains("0x") {
                         sa.trim_end_matches('`').parse::<i32>().unwrap() as u32
                     } else {
                         let sa = sa.replace("0x", "");
                         i32::from_str_radix(&sa, 16).unwrap() as u32
-                    },
-                })
+                    }
+                ))
             }
             // -----------------------------------------------------------------
             // |  SPECIAL  |   rs    |   rt    |    rd   |  00000  |    op     |
@@ -420,13 +434,7 @@ impl<'a> Parser<'a> {
                 let rs = args.get(2).unwrap().parse().map_err(
                     |ast::RegParseError::RegParseError(e)| error!(self, InvalidRegister, e),
                 )?;
-                Ok(ast::Instruction::Register {
-                    op: op.parse().unwrap(),
-                    rd,
-                    rs,
-                    rt,
-                    sa: 0,
-                })
+                Ok(inst!(Reg, op, rs, rt, rd))
             }
             // -----------------------------------------------------------------
             // |  SPECIAL  |                   code                |    op     |
@@ -444,13 +452,14 @@ impl<'a> Parser<'a> {
                     return Err(error!(self, InvalidOperandCount, arg, 1, args.len()));
                 };
 
-                Ok(ast::Instruction::Register {
-                    op: op.parse().unwrap(),
-                    rd: ast::Register::null(),
-                    rs: ast::Register::null(),
-                    rt: ast::Register::null(),
-                    sa: code.as_u32(),
-                })
+                Ok(inst!(
+                    Reg,
+                    op,
+                    ast::Register::null(),
+                    ast::Register::null(),
+                    ast::Register::null(),
+                    code.as_u32()
+                ))
             }
             // -----------------------------------------------------------------
             // |  SPECIAL  |   rs    |   rt    |   0000 0000 00    |    op     |
@@ -467,13 +476,7 @@ impl<'a> Parser<'a> {
                 let rt = args.get(1).unwrap().parse().map_err(
                     |ast::RegParseError::RegParseError(e)| error!(self, InvalidRegister, e),
                 )?;
-                Ok(ast::Instruction::Register {
-                    op: op.parse().unwrap(),
-                    rd: ast::Register::null(),
-                    rs,
-                    rt,
-                    sa: 0,
-                })
+                Ok(inst!(Reg, op, rs, rt, ast::Register::null()))
             }
             // -----------------------------------------------------------------
             // |  SPECIAL  |   rs    |  00000  |   rd    |  00000  |    op     |
@@ -493,24 +496,12 @@ impl<'a> Parser<'a> {
                     |ast::RegParseError::RegParseError(e)| error!(self, InvalidRegister, e),
                 )?;
                 if args.len() == 1 {
-                    Ok(ast::Instruction::Register {
-                        op: op.parse().unwrap(),
-                        rd: ast::Register::Ra,
-                        rs,
-                        rt: ast::Register::null(),
-                        sa: 0,
-                    })
+                    Ok(inst!(Reg, op, rs, ast::Register::null(), ast::Register::Ra))
                 } else {
                     let rd = args.get(1).unwrap().parse().map_err(
                         |ast::RegParseError::RegParseError(e)| error!(self, InvalidRegister, e),
                     )?;
-                    Ok(ast::Instruction::Register {
-                        op: op.parse().unwrap(),
-                        rd: rs,
-                        rs: rd,
-                        rt: ast::Register::null(),
-                        sa: 0,
-                    })
+                    Ok(inst!(Reg, op, rd, ast::Register::null(), rs))
                 }
             }
             "abs" | "dabs" | "dmove" | "dneg" | "dnegu" | "move" | "neg" | "negu" | "not" => {
@@ -523,13 +514,7 @@ impl<'a> Parser<'a> {
                 let rs = args.get(1).unwrap().parse().map_err(
                     |ast::RegParseError::RegParseError(e)| error!(self, InvalidRegister, e),
                 )?;
-                Ok(ast::Instruction::Register {
-                    op: op.parse().unwrap(),
-                    rd,
-                    rs,
-                    rt: ast::Register::null(),
-                    sa: 0,
-                })
+                Ok(inst!(Reg, op, rs, ast::Register::null(), rd))
             }
             "b" | "bal" => {
                 if args.len() != 1 {
@@ -547,12 +532,13 @@ impl<'a> Parser<'a> {
                 if !imm.is_label() && imm.as_u32() % 4 != 0 {
                     eprintln!("{}", warning!(self, UnalignedBranch, offset.to_string()));
                 }
-                Ok(ast::Instruction::Immediate {
-                    op: op.parse().unwrap(),
-                    rs: ast::Register::null(),
-                    rt: ast::Register::null(),
-                    imm,
-                })
+                Ok(inst!(
+                    Imm,
+                    op,
+                    ast::Register::null(),
+                    ast::Register::null(),
+                    imm
+                ))
             }
             "li" => {
                 if args.len() != 2 {
@@ -562,12 +548,13 @@ impl<'a> Parser<'a> {
                     |ast::RegParseError::RegParseError(e)| error!(self, InvalidRegister, e),
                 )?;
                 let imm = args.get(1).unwrap();
-                Ok(ast::Instruction::Immediate {
-                    op: op.parse().unwrap(),
-                    rs: ast::Register::null(),
+                Ok(inst!(
+                    Imm,
+                    op,
+                    ast::Register::null(),
                     rt,
-                    imm: self.parse_immediate::<i32>(imm)?,
-                })
+                    self.parse_immediate::<i32>(imm)?
+                ))
             }
             "ddiv" | "ddivu" | "div" | "divu" => {
                 if args.len() != 3 && args.len() != 2 {
@@ -580,24 +567,12 @@ impl<'a> Parser<'a> {
                     |ast::RegParseError::RegParseError(e)| error!(self, InvalidRegister, e),
                 )?;
                 if args.len() == 2 {
-                    Ok(ast::Instruction::Register {
-                        op: op.parse().unwrap(),
-                        rd,
-                        rs,
-                        rt: ast::Register::null(),
-                        sa: 0,
-                    })
+                    Ok(inst!(Reg, op, rs, ast::Register::null(), rd))
                 } else {
                     let rt = args.get(2).unwrap().parse().map_err(
                         |ast::RegParseError::RegParseError(e)| error!(self, InvalidRegister, e),
                     )?;
-                    Ok(ast::Instruction::Register {
-                        op: op.parse().unwrap(),
-                        rd,
-                        rs,
-                        rt,
-                        sa: 0,
-                    })
+                    Ok(inst!(Reg, op, rs, rt, rd))
                 }
             }
             // -----------------------------------------------------------------
@@ -617,13 +592,13 @@ impl<'a> Parser<'a> {
                 let rs = args.first().unwrap().parse().map_err(
                     |ast::RegParseError::RegParseError(e)| error!(self, InvalidRegister, e),
                 )?;
-                Ok(ast::Instruction::Register {
-                    op: op.parse().unwrap(),
-                    rd: ast::Register::null(),
+                Ok(inst!(
+                    Reg,
+                    op,
                     rs,
-                    rt: ast::Register::null(),
-                    sa: 0,
-                })
+                    ast::Register::null(),
+                    ast::Register::null()
+                ))
             }
             // -----------------------------------------------------------------
             // |  SPECIAL  |   0000 0000 00    |   rd    |  00000  |    op     |
@@ -636,13 +611,13 @@ impl<'a> Parser<'a> {
                 let rd = args.first().unwrap().parse().map_err(
                     |ast::RegParseError::RegParseError(e)| error!(self, InvalidRegister, e),
                 )?;
-                Ok(ast::Instruction::Register {
-                    op: op.parse().unwrap(),
-                    rd,
-                    rs: ast::Register::null(),
-                    rt: ast::Register::null(),
-                    sa: 0,
-                })
+                Ok(inst!(
+                    Reg,
+                    op,
+                    ast::Register::null(),
+                    ast::Register::null(),
+                    rd
+                ))
             }
             "dli" => {
                 if args.len() != 2 {
@@ -652,12 +627,13 @@ impl<'a> Parser<'a> {
                     |ast::RegParseError::RegParseError(e)| error!(self, InvalidRegister, e),
                 )?;
                 let imm = args.get(1).unwrap();
-                Ok(ast::Instruction::Immediate {
-                    op: op.parse().unwrap(),
-                    rs: ast::Register::null(),
+                Ok(inst!(
+                    Imm,
+                    op,
+                    ast::Register::null(),
                     rt,
-                    imm: self.parse_immediate::<i64>(imm)?,
-                })
+                    self.parse_immediate::<i64>(imm)?
+                ))
             }
             // -----------------------------------------------------------------
             // |   COPz    |   op    |    bc    |           offset             |
@@ -678,12 +654,14 @@ impl<'a> Parser<'a> {
                 if !imm.is_label() && imm.as_u32() % 4 != 0 {
                     eprintln!("{}", warning!(self, UnalignedBranch, offset.to_string()));
                 }
-                Ok(ast::Instruction::Immediate {
-                    op: op.parse().unwrap(),
-                    rs: ast::Register::null(),
-                    rt: ast::Register::null(),
-                    imm,
-                })
+
+                Ok(inst!(
+                    Imm,
+                    op,
+                    ast::Register::null(),
+                    ast::Register::null(),
+                    imm
+                ))
             }
             // -----------------------------------------------------------------
             // |   COPz    |   op    |   rt    |   rd    |    0000 0000 000    |
@@ -699,13 +677,8 @@ impl<'a> Parser<'a> {
                 let rd = args.get(1).unwrap().parse::<ast::Cop0Register>().map_err(
                     |ast::RegParseError::RegParseError(e)| error!(self, InvalidRegister, e),
                 )?;
-                Ok(ast::Instruction::Register {
-                    op: op.parse().unwrap(),
-                    rs: ast::Register::null(),
-                    rt,
-                    rd: rd.into(),
-                    sa: 0,
-                })
+
+                Ok(inst!(Reg, op, ast::Register::null(), rt, rd.into()))
             }
             // -----------------------------------------------------------------
             // |   COPz    |   op    |   rt    |   fs    |    0000 0000 000    |
@@ -721,25 +694,20 @@ impl<'a> Parser<'a> {
                 let rd = args.get(1).unwrap().parse::<ast::FloatRegister>().map_err(
                     |ast::RegParseError::RegParseError(e)| error!(self, InvalidRegister, e),
                 )?;
-                Ok(ast::Instruction::Register {
-                    op: op.parse().unwrap(),
-                    rs: ast::Register::null(),
-                    rt,
-                    rd: rd.into(),
-                    sa: 0,
-                })
+
+                Ok(inst!(Reg, op, ast::Register::null(), rt, rd.into()))
             }
             // -----------------------------------------------------------------
             // |   COPz    |CO|      0000 0000 0000 0000 000       |    op     |
             // ------6------1-------------------19-----------------------6------
             //  Format:  op
-            "eret" | "tlbp" | "tlbr" | "tlbwi" | "tlbwr" => Ok(ast::Instruction::Register {
-                op: op.parse().unwrap(),
-                rs: ast::Register::null(),
-                rt: ast::Register::null(),
-                rd: ast::Register::null(),
-                sa: 0,
-            }),
+            "eret" | "tlbp" | "tlbr" | "tlbwi" | "tlbwr" => Ok(inst!(
+                Reg,
+                op,
+                ast::Register::null(),
+                ast::Register::null(),
+                ast::Register::null()
+            )),
             // -----------------------------------------------------------------
             // |    op     |   base  |   ft    |            offset             |
             // ------6----------5---------5-------------------16----------------
@@ -768,19 +736,21 @@ impl<'a> Parser<'a> {
                         error!(self, InvalidRegister, e)
                     })?;
                 if let Some(x) = OFFSET_RE.find(x) {
-                    Ok(ast::Instruction::Immediate {
-                        op: op.parse().unwrap(),
-                        rs: base,
-                        rt: ast::Register::from(ft),
-                        imm: self.parse_immediate::<i16>(&x.as_str().replace('(', ""))?,
-                    })
+                    Ok(inst!(
+                        Imm,
+                        op,
+                        base,
+                        ast::Register::from(ft),
+                        self.parse_immediate::<i16>(&x.as_str().replace('(', ""))?
+                    ))
                 } else {
-                    Ok(ast::Instruction::Immediate {
-                        op: op.parse().unwrap(),
-                        rs: base,
-                        rt: ast::Register::from(ft),
-                        imm: self.parse_immediate::<i16>("0")?,
-                    })
+                    Ok(inst!(
+                        Imm,
+                        op,
+                        base,
+                        ast::Register::from(ft),
+                        self.parse_immediate::<i16>("0")?
+                    ))
                 }
             }
             ".word" => Ok(ast::Instruction::Bytes {
@@ -808,13 +778,14 @@ impl<'a> Parser<'a> {
                     let ft = args.get(2).unwrap().parse::<ast::FloatRegister>().map_err(
                         |ast::RegParseError::RegParseError(e)| error!(self, InvalidRegister, e),
                     )?;
-                    Ok(ast::Instruction::Register {
-                        op: op.parse().unwrap(),
-                        rs: ast::Register::from(fs),
-                        rt: ast::Register::from(ft),
-                        rd: ast::Register::from(fd),
-                        sa: 0,
-                    })
+
+                    Ok(inst!(
+                        Reg,
+                        op,
+                        ast::Register::from(fs),
+                        ast::Register::from(ft),
+                        ast::Register::from(fd)
+                    ))
                 }
                 // -----------------------------------------------------------------
                 // |   COP1    |   fmt   |  00000  |   fs    |   fd    |    op     |
@@ -836,13 +807,14 @@ impl<'a> Parser<'a> {
                     let fs = args.get(1).unwrap().parse::<ast::FloatRegister>().map_err(
                         |ast::RegParseError::RegParseError(e)| error!(self, InvalidRegister, e),
                     )?;
-                    Ok(ast::Instruction::Register {
-                        op: op.parse().unwrap(),
-                        rs: ast::Register::from(fs),
-                        rt: ast::Register::null(),
-                        rd: ast::Register::from(fd),
-                        sa: 0,
-                    })
+
+                    Ok(inst!(
+                        Reg,
+                        op,
+                        ast::Register::from(fs),
+                        ast::Register::null(),
+                        ast::Register::from(fd)
+                    ))
                 }
                 e => {
                     // -----------------------------------------------------------------
@@ -863,15 +835,17 @@ impl<'a> Parser<'a> {
                         let ft = args.get(1).unwrap().parse::<ast::FloatRegister>().map_err(
                             |ast::RegParseError::RegParseError(e)| error!(self, InvalidRegister, e),
                         )?;
-                        return Ok(ast::Instruction::Register {
-                            op: format!("C.{}", op.chars().last().unwrap()).parse().unwrap(),
-                            rs: ast::Register::from(fs),
-                            rt: ast::Register::from(ft),
-                            rd: ast::Register::null(),
-                            sa: self.parse_float_cond(
+
+                        return Ok(inst!(
+                            Reg,
+                            format!("C.{}", op.chars().last().unwrap()),
+                            ast::Register::from(fs),
+                            ast::Register::from(ft),
+                            ast::Register::null(),
+                            self.parse_float_cond(
                                 op.split('.').collect::<Vec<&str>>().get(1).unwrap(),
-                            )?,
-                        });
+                            )?
+                        ));
                     }
                     Err(error!(self, InvalidOpcode, op))
                 }
@@ -888,6 +862,7 @@ impl<'a> Parser<'a> {
                 rs,
                 rt,
                 imm: ast::Immediate::Label(lbl),
+                ..
             } = &self.insts[i].1
             {
                 let lbl_addr = self.labels.get(lbl.as_str()).unwrap();
@@ -898,12 +873,14 @@ impl<'a> Parser<'a> {
                     rt: *rt,
                     // Calculate the offset from the label to the current instruction
                     imm,
+                    bytes: 0,
                 };
             } else if let ast::Instruction::Immediate {
                 op,
                 rs,
                 rt,
                 imm: ast::Immediate::LocalLabel(loc),
+                ..
             } = &self.insts[i].1
             {
                 let lbls = self.local_labels_dropped.get(loc.as_str());
@@ -923,6 +900,7 @@ impl<'a> Parser<'a> {
                         rt: *rt,
                         // Calculate the offset from the label to the current instruction
                         imm,
+                        bytes: 0,
                     };
                     continue 'a;
                 }
@@ -932,6 +910,7 @@ impl<'a> Parser<'a> {
                 rs,
                 rt,
                 imm: ast::Immediate::Int(addr),
+                ..
             } = &self.insts[i].1
             {
                 if !op.to_string().starts_with('b') {
@@ -955,10 +934,12 @@ impl<'a> Parser<'a> {
                     rs: *rs,
                     rt: *rt,
                     imm: ast::Immediate::Short(((offset / 4) as i16) as u16),
+                    bytes: 0,
                 };
             } else if let ast::Instruction::Jump {
                 op,
                 target: ast::Target::Label(lbl),
+                ..
             } = &self.insts[i].1
             {
                 let lbl_addr = self.labels.get(lbl.as_str());
@@ -969,6 +950,7 @@ impl<'a> Parser<'a> {
                 self.insts[i].1 = ast::Instruction::Jump {
                     op: *op,
                     target: ast::Target::Address(self.base_addr + *lbl_addr.unwrap() as u32 * 4),
+                    bytes: 0,
                 };
             }
         }

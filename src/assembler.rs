@@ -9,7 +9,7 @@ pub fn assemble(insts: Vec<ast::Instruction>) -> Vec<u32> {
     let mut bytes = vec![];
     for inst in insts {
         let i = match inst {
-            ast::Instruction::Immediate { op, rs, rt, imm } => match op {
+            ast::Instruction::Immediate { op, rs, rt, imm, .. } => match op {
                 I::Addi => 0b001000 << 26 | rs.as_num() << 21 | rt.as_num() << 16 | imm.as_u32(),
                 I::Addiu => 0b001001 << 26 | rs.as_num() << 21 | rt.as_num() << 16 | imm.as_u32(),
                 I::Andi => 0b001100 << 26 | rs.as_num() << 21 | rt.as_num() << 16 | imm.as_u32(),
@@ -167,11 +167,11 @@ pub fn assemble(insts: Vec<ast::Instruction>) -> Vec<u32> {
                 I::Tnei => 0b000001 << 26 | rs.as_num() << 21 | 0b01110 << 16 | imm.as_u32(),
                 I::Xori => 0b001110 << 26 | rs.as_num() << 21 | rt.as_num() << 16 | imm.as_u32(),
             }
-            ast::Instruction::Jump { op, target } => match op {
+            ast::Instruction::Jump { op, target, .. } => match op {
                 J::J => 0b000010 << 26 | (target.as_u32() & 0x3FFFFFF) >> 2,
                 J::Jal => 0b000011 << 26 | (target.as_u32() & 0x3FFFFFF) >> 2,
             }
-            ast::Instruction::Register { op, rs, rt, rd, sa } => match op {
+            ast::Instruction::Register { op, rs, rt, rd, sa, .. } => match op {
                 R::Abs => {
                     bytes.push(rs.as_num() << 16 | 0b000001 << 11 | 31 << 6 | 0b000011);
                     bytes.push(rs.as_num() << 21 | 0b000001 << 16 | rd.as_num() << 11 | 0b100110);

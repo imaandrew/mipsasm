@@ -157,12 +157,14 @@ impl<'a> Mipsasm<'a> {
             if let ast::Instruction::Jump {
                 op,
                 target: ast::Target::Address(addr),
+                ..
             } = i
             {
                 if let Some(sym) = self.syms.iter().find(|(_, v)| **v == *addr) {
                     *i = ast::Instruction::Jump {
                         op: *op,
                         target: ast::Target::Label(sym.0.to_string()),
+                        bytes: 0,
                     };
                 }
             }

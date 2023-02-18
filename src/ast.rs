@@ -118,10 +118,12 @@ pub enum Instruction {
         rs: Register,
         rt: Register,
         imm: Immediate,
+        bytes: u32,
     },
     Jump {
         op: JTypeOp,
         target: Target,
+        bytes: u32,
     },
     Register {
         op: RTypeOp,
@@ -129,6 +131,7 @@ pub enum Instruction {
         rt: Register,
         rd: Register,
         sa: u32,
+        bytes: u32,
     },
     Bytes {
         bytes: Immediate,
@@ -185,6 +188,7 @@ impl fmt::Display for Instruction {
                 rs,
                 rt,
                 imm: Immediate::Short(imm),
+                ..
             } => match op {
                 I::Lb
                 | I::Lbu
@@ -275,12 +279,14 @@ impl fmt::Display for Instruction {
                 rs,
                 rt,
                 imm: Immediate::Label(l),
+                ..
             }
             | Instruction::Immediate {
                 op,
                 rs,
                 rt,
                 imm: Immediate::LocalLabel(l),
+                ..
             } => match op {
                 I::Beqz | I::Bgtz | I::Bgtzl | I::Blez | I::Blezl | I::Bnez => {
                     write!(f, "{:11}${}, {}", op, rs, l)
@@ -319,16 +325,20 @@ impl fmt::Display for Instruction {
             Instruction::Jump {
                 op,
                 target: Target::Address(target),
+                ..
             } => {
                 write!(f, "{:11}{:#X?}", op, target)
             }
             Instruction::Jump {
                 op,
                 target: Target::Label(lbl),
+                ..
             } => {
                 write!(f, "{:11}{}", op, lbl)
             }
-            Instruction::Register { op, rs, rt, rd, sa } => match op {
+            Instruction::Register {
+                op, rs, rt, rd, sa, ..
+            } => match op {
                 R::Sync => write!(f, "{}", op),
                 R::Add
                 | R::Addu
