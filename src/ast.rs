@@ -118,12 +118,12 @@ pub enum Instruction {
         rs: Register,
         rt: Register,
         imm: Immediate,
-        bytes: u32,
+        bytes: Vec<u32>,
     },
     Jump {
         op: JTypeOp,
         target: Target,
-        bytes: u32,
+        bytes: Vec<u32>,
     },
     Register {
         op: RTypeOp,
@@ -131,10 +131,10 @@ pub enum Instruction {
         rt: Register,
         rd: Register,
         sa: u32,
-        bytes: u32,
+        bytes: Vec<u32>,
     },
     Bytes {
-        bytes: Immediate,
+        bytes: u32,
     },
 }
 
@@ -176,6 +176,24 @@ impl Instruction {
             ),
             Instruction::Register { op, .. } => matches!(op, R::Jr | R::Jalr),
             Instruction::Bytes { .. } => false,
+        }
+    }
+
+    pub fn push_bytes(&mut self, bytes: &mut Vec<u32>) {
+        match self {
+            Instruction::Immediate { bytes: b, .. }
+            | Instruction::Jump { bytes: b, .. }
+            | Instruction::Register { bytes: b, .. } => b.append(bytes),
+            _ => panic!(),
+        }
+    }
+
+    pub fn get_bytes(&self) -> Vec<u32> {
+        match self {
+            Instruction::Immediate { bytes: b, .. }
+            | Instruction::Jump { bytes: b, .. }
+            | Instruction::Register { bytes: b, .. } => b.clone(),
+            Instruction::Bytes { bytes: b } => vec![*b],
         }
     }
 }

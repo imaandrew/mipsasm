@@ -1,5 +1,5 @@
 use clap::{Parser, ValueEnum};
-use mipsasm::Mipsasm;
+use mipsasm::{get_bytes, Mipsasm};
 use std::collections::HashMap;
 use std::error;
 use std::fs;
@@ -70,10 +70,11 @@ fn main() -> Result<(), Box<dyn error::Error>> {
             };
 
             if let Some(output_file) = cli.output_file {
-                let mut bytes = vec![];
-                for word in output {
-                    bytes.append(&mut word.to_be_bytes().to_vec());
-                }
+                let output = get_bytes(&output);
+                let bytes: Vec<u8> = output
+                    .iter()
+                    .flat_map(|word| word.to_be_bytes().to_vec())
+                    .collect();
                 File::create(output_file)?.write_all(&bytes)?;
             } else {
                 println!("{:08X?}", output);

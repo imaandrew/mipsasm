@@ -1,7 +1,8 @@
-use mipsasm::Mipsasm;
+use mipsasm::{get_bytes, Mipsasm};
 
 pub fn asm(inst: &str) -> Vec<u32> {
-    Mipsasm::new().base(0x80000000).assemble(inst).unwrap()
+    let insts = Mipsasm::new().base(0x80000000).assemble(inst).unwrap();
+    get_bytes(&insts)
 }
 
 pub fn disasm(inst: &[u32]) -> String {

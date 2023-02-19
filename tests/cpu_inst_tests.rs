@@ -1,5 +1,5 @@
 mod common;
-use mipsasm::Mipsasm;
+use mipsasm::{get_bytes, Mipsasm};
 use std::collections::HashMap;
 
 use common::{asm, disasm};
@@ -395,6 +395,7 @@ fn test_jal_sym() {
         .symbols(x.clone())
         .assemble("jal func")
         .unwrap();
+    let asm = get_bytes(&asm);
     assert_eq!(asm, vec![0x0c048d15]);
 
     let disasm = Mipsasm::new()

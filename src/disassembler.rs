@@ -7,14 +7,14 @@ macro_rules! inst {
             rs: ast::Register::try_from($rs).unwrap(),
             rt: ast::Register::try_from($rt).unwrap(),
             imm: ast::Immediate::Short($imm as u16),
-            bytes: $bytes,
+            bytes: vec![$bytes],
         }
     };
     (Jump, $op:ident, $target:expr, $bytes:expr) => {
         ast::Instruction::Jump {
             op: ast::JTypeOp::$op,
             target: ast::Target::Address($target),
-            bytes: $bytes,
+            bytes: vec![$bytes],
         }
     };
     (Reg, $op:ident, $rs:expr, $rt:expr, $rd:expr, $bytes:expr) => {
@@ -24,7 +24,7 @@ macro_rules! inst {
             rt: ast::Register::try_from($rt).unwrap(),
             rd: ast::Register::try_from($rd).unwrap(),
             sa: 0,
-            bytes: $bytes,
+            bytes: vec![$bytes],
         }
     };
     (Reg, $op:ident, $rs:expr, $rt:expr, $rd:expr, $sa:expr, $bytes:expr) => {
@@ -34,13 +34,11 @@ macro_rules! inst {
             rt: ast::Register::try_from($rt).unwrap(),
             rd: ast::Register::try_from($rd).unwrap(),
             sa: $sa,
-            bytes: $bytes,
+            bytes: vec![$bytes],
         }
     };
     (Bytes, $imm:expr) => {
-        ast::Instruction::Bytes {
-            bytes: ast::Immediate::Int($imm),
-        }
+        ast::Instruction::Bytes { bytes: $imm }
     };
 }
 

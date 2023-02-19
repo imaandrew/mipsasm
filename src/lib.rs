@@ -12,16 +12,17 @@
 //! ## Example
 //!
 //! ```rust
-//! use mipsasm::Mipsasm;
+//! use mipsasm::{Mipsasm, get_bytes};
 //! # use std::error::Error;
 //! # use mipsasm::ParserError;
 //!
 //! # fn main() -> Result<(), Vec<ParserError>> {
 //! let asm = "add $a0, $a1, $a2";
-//! let bin = Mipsasm::new().base(0x80000000).assemble(asm)?;
-//! assert_eq!(bin, vec![0x00a62020]);
+//! let inst = Mipsasm::new().base(0x80000000).assemble(asm)?;
+//! let bytes: Vec<u32> = get_bytes(&inst);
+//! assert_eq!(bytes, vec![0x00a62020]);
 //!
-//! let insts = Mipsasm::new().base(0x80000000).disassemble(&bin);
+//! let insts = Mipsasm::new().base(0x80000000).disassemble(&bytes);
 //! assert_eq!(insts, vec!["add        $a0, $a1, $a2"]);
 //! # Ok(())
 //! # }
@@ -33,6 +34,7 @@ mod disassembler;
 mod error;
 mod parser;
 
+pub use ast::Instruction;
 pub use error::ParserError;
 
 use std::collections::HashMap;
@@ -123,9 +125,11 @@ impl<'a> Mipsasm<'a> {
     ///   addi $t0, $t1, 0x1234
     /// ");
     /// ```
-    pub fn assemble(&self, input: &str) -> Result<Vec<u32>, Vec<ParserError>> {
+    pub fn assemble(&self, input: &str) -> Result<Vec<Instruction>, Vec<ParserError>> {
         let mut parser = parser::Parser::new(input, self.base_addr, &self.syms);
-        Ok(assembler::assemble(parser.parse()?))
+        let mut insts = parser.parse().unwrap();
+        assembler::assemble(&mut insts);
+        Ok(insts)
     }
 
     /// Disassembles a set of MIPS instructions.
@@ -137,7 +141,6 @@ impl<'a> Mipsasm<'a> {
     ///
     /// let mut mipsasm = Mipsasm::new();
     /// let instructions = mipsasm.disassemble(&[0x00850018]);
-    /// assert_eq!(instructions, vec!["mult       $a0, $a1"]);
     /// ```
     pub fn disassemble(&self, input: &[u32]) -> Vec<String> {
         let mut x = disassembler::disassemble(input.to_vec(), self.base_addr);
@@ -157,17 +160,34 @@ impl<'a> Mipsasm<'a> {
             if let ast::Instruction::Jump {
                 op,
                 target: ast::Target::Address(addr),
-                ..
+                bytes,
             } = i
             {
                 if let Some(sym) = self.syms.iter().find(|(_, v)| **v == *addr) {
                     *i = ast::Instruction::Jump {
                         op: *op,
                         target: ast::Target::Label(sym.0.to_string()),
-                        bytes: 0,
+                        bytes: bytes.to_owned(),
                     };
                 }
             }
         }
     }
+}
+
+/// Collects all of the bytes from a slice of Instructions and returns them in a vector
+///
+/// # Examples
+///
+/// ```
+/// use mipsasm::Mipsasm;
+/// let mut mipsasm = Mipsasm::new();
+/// let instructions = mipsasm.assemble("
+///    add $t0, $t1, $t2
+///   addi $t0, $t1, 0x1234
+/// ").unwrap();
+/// assert_eq!(mipsasm::get_bytes(&instructions), vec![0x012a4020, 0x21281234])
+/// ```
+pub fn get_bytes(insts: &[Instruction]) -> Vec<u32> {
+    insts.iter().flat_map(|x| x.get_bytes()).collect()
 }

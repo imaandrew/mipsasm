@@ -15,14 +15,14 @@ macro_rules! inst {
             rs: $rs,
             rt: $rt,
             imm: $imm,
-            bytes: 0,
+            bytes: vec![],
         }
     };
     (Jump, $op:expr, $target:expr) => {
         ast::Instruction::Jump {
             op: $op.parse().unwrap(),
             target: $target,
-            bytes: 0,
+            bytes: vec![],
         }
     };
     (Reg, $op:expr, $rs:expr, $rt:expr, $rd:expr) => {
@@ -32,7 +32,7 @@ macro_rules! inst {
             rt: $rt,
             rd: $rd,
             sa: 0,
-            bytes: 0,
+            bytes: vec![],
         }
     };
     (Reg, $op:expr, $rs:expr, $rt:expr, $rd:expr, $sa:expr) => {
@@ -42,7 +42,7 @@ macro_rules! inst {
             rt: $rt,
             rd: $rd,
             sa: $sa,
-            bytes: 0,
+            bytes: vec![],
         }
     };
     (Bytes, $imm:expr) => {
@@ -754,7 +754,7 @@ impl<'a> Parser<'a> {
                 }
             }
             ".word" => Ok(ast::Instruction::Bytes {
-                bytes: self.parse_immediate::<u32>(arg)?,
+                bytes: self.parse_immediate::<u32>(arg)?.as_u32(),
             }),
             _ => match &op.to_lowercase()[..op.len() - 2] {
                 // -----------------------------------------------------------------
@@ -873,7 +873,7 @@ impl<'a> Parser<'a> {
                     rt: *rt,
                     // Calculate the offset from the label to the current instruction
                     imm,
-                    bytes: 0,
+                    bytes: vec![],
                 };
             } else if let ast::Instruction::Immediate {
                 op,
@@ -900,7 +900,7 @@ impl<'a> Parser<'a> {
                         rt: *rt,
                         // Calculate the offset from the label to the current instruction
                         imm,
-                        bytes: 0,
+                        bytes: vec![],
                     };
                     continue 'a;
                 }
@@ -934,7 +934,7 @@ impl<'a> Parser<'a> {
                     rs: *rs,
                     rt: *rt,
                     imm: ast::Immediate::Short(((offset / 4) as i16) as u16),
-                    bytes: 0,
+                    bytes: vec![],
                 };
             } else if let ast::Instruction::Jump {
                 op,
@@ -950,7 +950,7 @@ impl<'a> Parser<'a> {
                 self.insts[i].1 = ast::Instruction::Jump {
                     op: *op,
                     target: ast::Target::Address(self.base_addr + *lbl_addr.unwrap() as u32 * 4),
-                    bytes: 0,
+                    bytes: vec![],
                 };
             }
         }
