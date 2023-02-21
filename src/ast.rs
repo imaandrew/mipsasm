@@ -101,13 +101,17 @@ impl Immediate {
 struct Signed(u16);
 // Format an i16 as a sign-aware hex string
 // https://stackoverflow.com/a/44712309
-// TODO: fix panic when formatting max u16 as signed int
 impl fmt::LowerHex for Signed {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let val = self.0 as i16;
+        let val = self.0;
         let p = if f.alternate() { "0x" } else { "" };
-        let x = format!("{:x}", val.abs());
-        f.pad_integral(val >= 0, p, &x)
+        let abs_val = if val == 0x8000 {
+            0x8000
+        } else {
+            (val as i16).unsigned_abs()
+        };
+        let x = format!("{:x}", abs_val);
+        f.pad_integral(val < i16::MAX.unsigned_abs(), p, &x)
     }
 }
 
