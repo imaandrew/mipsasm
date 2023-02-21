@@ -105,8 +105,8 @@ impl fmt::LowerHex for Signed {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let val = self.0;
         let p = if f.alternate() { "0x" } else { "" };
-        let abs_val = if val == 0x8000 {
-            0x8000
+        let abs_val = if val == i16::MAX.unsigned_abs() {
+            i16::MAX.unsigned_abs()
         } else {
             (val as i16).unsigned_abs()
         };
