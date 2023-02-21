@@ -359,7 +359,12 @@ impl fmt::Display for Instruction {
                 write!(f, "{:11}{}", op, lbl)
             }
             Instruction::Register {
-                op, rs, rt, rd, sa, ..
+                op,
+                rs,
+                rt,
+                rd,
+                sa,
+                bytes,
             } => match op {
                 R::Sync => write!(f, "{}", op),
                 R::Add
@@ -429,7 +434,20 @@ impl fmt::Display for Instruction {
                     write!(f, "{:11}${}", op, rd)
                 }
                 R::Cfc0 | R::Ctc0 | R::Dmfc0 | R::Dmtc0 | R::Mfc0 | R::Mtc0 => {
-                    write!(f, "{:11}${}, {}", op, rt, Cop0Register::from(*rd))
+                    if let Ok(rd) = Cop0Register::try_from(*rd) {
+                        write!(f, "{:11}${}, {}", op, rt, rd)
+                    } else {
+                        write!(
+                            f,
+                            "{:11}0x{:08x} {:>10} {:11}${}, {:#04x}",
+                            ".word",
+                            bytes.first().unwrap(),
+                            "#",
+                            op,
+                            rt,
+                            *rd as u32
+                        )
+                    }
                 }
                 R::Cfc1 | R::Ctc1 | R::Dmfc1 | R::Dmtc1 | R::Mfc1 | R::Mtc1 => {
                     write!(f, "{:11}${}, ${}", op, rt, FloatRegister::from(*rd))
@@ -961,9 +979,11 @@ impl FromStr for Cop0Register {
     }
 }
 
-impl From<Register> for Cop0Register {
-    fn from(reg: Register) -> Self {
-        Cop0Register::try_from(reg as u32).unwrap()
+impl TryFrom<Register> for Cop0Register {
+    type Error = RegParseError;
+
+    fn try_from(reg: Register) -> Result<Self, Self::Error> {
+        Cop0Register::try_from(reg as u32)
     }
 }
 
