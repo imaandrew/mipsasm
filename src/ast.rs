@@ -546,7 +546,7 @@ impl fmt::Display for Instruction {
                 }
                 e => panic!("{:?} not implemented", e),
             },
-            Instruction::Bytes { bytes } => write!(f, ".word     {:#x?}", bytes),
+            Instruction::Bytes { bytes } => write!(f, "{:11}0x{:08x}", ".word", bytes),
             e => panic!("Invalid instruction: {:?}", e),
         }
     }
