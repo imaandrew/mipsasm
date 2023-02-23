@@ -387,8 +387,8 @@ test!(test_jal, "jal 0x80000000", 0x0c000000);
 
 #[test]
 fn test_jal_sym() {
-    let mut x: HashMap<&str, u32> = HashMap::new();
-    x.insert("func", 0x80123454);
+    let mut x: HashMap<u32, &str> = HashMap::new();
+    x.insert(0x80123454, "func");
 
     let asm = Mipsasm::new()
         .base(0x80000000)

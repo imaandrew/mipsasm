@@ -45,7 +45,7 @@ use std::collections::HashMap;
 /// An instance of the assembler/disassembler
 pub struct Mipsasm<'a> {
     base_addr: u32,
-    syms: HashMap<&'a str, u32>,
+    syms: HashMap<u32, &'a str>,
     debug: bool,
 }
 
@@ -91,9 +91,9 @@ impl<'a> Mipsasm<'a> {
     /// use std::collections::HashMap;
     ///
     /// let mut mipsasm = Mipsasm::new();
-    /// mipsasm.symbols(HashMap::from_iter(vec![("foo", 0x8000_0000)]));
+    /// mipsasm.symbols(HashMap::from_iter(vec![(0x8000_0000, "foo")]));
     /// ```
-    pub fn symbols(&mut self, syms: HashMap<&'a str, u32>) -> &mut Mipsasm<'a> {
+    pub fn symbols(&mut self, syms: HashMap<u32, &'a str>) -> &mut Mipsasm<'a> {
         self.syms = syms;
         self
     }
@@ -203,10 +203,10 @@ impl<'a> Mipsasm<'a> {
                 bytes,
             } = i
             {
-                if let Some(sym) = self.syms.iter().find(|(_, v)| **v == *addr) {
+                if let Some(sym) = self.syms.get(addr) {
                     *i = ast::Instruction::Jump {
                         op: *op,
-                        target: ast::Target::Label(sym.0.to_string()),
+                        target: ast::Target::Label(sym.to_string()),
                         bytes: bytes.to_owned(),
                     };
                 }
@@ -215,8 +215,8 @@ impl<'a> Mipsasm<'a> {
     }
 
     fn get_sym(&self, addr: u32) -> String {
-        if let Some(sym) = self.syms.iter().find(|(_, v)| **v == addr) {
-            sym.0.to_string()
+        if let Some(sym) = self.syms.get(&addr) {
+            sym.to_string()
         } else {
             format!("func_{:08x}", addr)
         }

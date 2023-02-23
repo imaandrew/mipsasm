@@ -1,3 +1,5 @@
+extern crate yaml_rust;
+
 use clap::{Parser, ValueEnum};
 use mipsasm::{get_bytes, Mipsasm};
 use std::collections::HashMap;
@@ -6,6 +8,7 @@ use std::fs;
 use std::fs::File;
 use std::io::Write;
 use std::path::PathBuf;
+use yaml_rust::YamlLoader;
 
 #[derive(Parser)]
 #[clap(author, version, about, long_about = None)]
@@ -41,14 +44,14 @@ fn main() -> Result<(), Box<dyn error::Error>> {
         None => String::new(),
     };
 
-    // Parse symbols from string as format "name=0x12345678"
-    let symbols: HashMap<&str, u32> = HashMap::from_iter(syms.lines().map(|s| {
-        let mut parts = s.split('=');
-        let name = parts.next().unwrap().trim();
-        let value = parts.next().unwrap();
-        let value = u32::from_str_radix(value.replace("0x", "").trim(), 16).unwrap();
-        (name, value)
-    }));
+    let yaml = YamlLoader::load_from_str(&syms).unwrap();
+    let syms: HashMap<u32, &str> = if let Some(hash) = yaml[0].as_hash() {
+        hash.iter()
+            .filter_map(|(k, v)| Some((k.as_i64()? as u32, v.as_str()?)))
+            .collect()
+    } else {
+        HashMap::new()
+    };
 
     let addr = cli.base_addr.replace("0x", "");
     let addr = u32::from_str_radix(&addr, 16).unwrap_or_else(|_| {
@@ -59,7 +62,7 @@ fn main() -> Result<(), Box<dyn error::Error>> {
     match cli.mode {
         Mode::Asm => {
             let data: String = fs::read_to_string(cli.input_file)?.parse()?;
-            let output = match Mipsasm::new().base(addr).symbols(symbols).assemble(&data) {
+            let output = match Mipsasm::new().base(addr).symbols(syms).assemble(&data) {
                 Ok(output) => output,
                 Err(e) => {
                     for err in e {
@@ -93,10 +96,7 @@ fn main() -> Result<(), Box<dyn error::Error>> {
                     break;
                 }
             }
-            let output = Mipsasm::new()
-                .base(addr)
-                .symbols(symbols)
-                .disassemble(&words);
+            let output = Mipsasm::new().base(addr).symbols(syms).disassemble(&words);
 
             if let Some(output_file) = cli.output_file {
                 let mut f = File::create(output_file)?;

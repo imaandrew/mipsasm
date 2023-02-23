@@ -65,13 +65,13 @@ pub struct Parser<'a> {
     local_labels: HashMap<String, (usize, String)>,
     local_labels_dropped: HashMap<String, Vec<(usize, String)>>,
     base_addr: u32,
-    syms: &'a HashMap<&'a str, u32>,
+    syms: &'a HashMap<u32, &'a str>,
     line_num: usize,
     errors: Vec<ParserError>,
 }
 
 impl<'a> Parser<'a> {
-    pub fn new(input: &'a str, base_addr: u32, syms: &'a HashMap<&'a str, u32>) -> Parser<'a> {
+    pub fn new(input: &'a str, base_addr: u32, syms: &'a HashMap<u32, &'a str>) -> Parser<'a> {
         Parser {
             input: input.lines().collect(),
             insts: vec![],
@@ -1002,8 +1002,8 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_target(&self, target: &str) -> Result<ast::Target, ParserError> {
-        if let Some(x) = self.syms.get(target) {
-            return Ok(ast::Target::Address(*x));
+        if let Some(x) = self.syms.iter().find(|(_, v)| **v == target) {
+            return Ok(ast::Target::Address(*x.0));
         }
 
         if target.starts_with("0x") {
