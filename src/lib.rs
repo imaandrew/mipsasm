@@ -23,7 +23,10 @@
 //! assert_eq!(bytes, vec![0x00a62020]);
 //!
 //! let insts = Mipsasm::new().base(0x80000000).disassemble(&bytes);
-//! assert_eq!(insts, vec!["add        $a0, $a1, $a2"]);
+//! assert_eq!(insts, vec!["func_80000000:", "add        $a0, $a1, $a2"]);
+//!
+//! let insts = Mipsasm::new().base(0x80000000).debug().disassemble(&bytes);
+//! assert_eq!(insts, vec!["add $a0, $a1, $a2"]);
 //! # Ok(())
 //! # }
 //! ```
@@ -97,7 +100,7 @@ impl<'a> Mipsasm<'a> {
 
     /// Set the debug flag for the assembler.
     ///
-    /// When debug is set to true, the disassembler will print instructions with all extra whitespace stripped.
+    /// When debug is set to true, the disassembler will print instructions with all extra whitespace stripped and will not emit labels.
     /// This is used for testing and will most likely not be useful for other purposes.
     ///
     /// # Examples
@@ -145,12 +148,49 @@ impl<'a> Mipsasm<'a> {
     pub fn disassemble(&self, input: &[u32]) -> Vec<String> {
         let mut x = disassembler::disassemble(input.to_vec(), self.base_addr);
         self.match_syms(&mut x);
+
         if self.debug {
             x.iter()
                 .map(|x| format!("{:?}", x))
                 .collect::<Vec<String>>()
         } else {
-            x.iter().map(|x| x.to_string()).collect::<Vec<String>>()
+            let mut out = vec![];
+            let mut func_start = 0;
+            let mut function_ended = false;
+            let mut largest_branch = 0;
+
+            out.push(format!("{}:", self.get_sym(self.base_addr)));
+
+            for i in 0..x.len() {
+                if function_ended {
+                    out.push(x[i].to_string());
+                    func_start = i * 4;
+                    largest_branch = 0;
+                    function_ended = false;
+                    if i < x.len() - 1 {
+                        out.push(String::new());
+                        out.push(format!(
+                            "{}:",
+                            self.get_sym(self.base_addr + (i + 1) as u32 * 4)
+                        ));
+                    }
+                } else {
+                    if x[i].is_branch() && x[i].get_branch_offset() > largest_branch {
+                        largest_branch = x[i].get_branch_offset();
+                    }
+
+                    if x[i].is_unconditional_jump()
+                        && x[i].get_jump_target() < Some(func_start as u32 + self.base_addr)
+                        || x[i].get_jump_target() > Some(i as u32 * 4 + self.base_addr)
+                    {
+                        function_ended = true;
+                    }
+
+                    out.push(x[i].to_string());
+                }
+            }
+
+            out
         }
     }
 
@@ -171,6 +211,14 @@ impl<'a> Mipsasm<'a> {
                     };
                 }
             }
+        }
+    }
+
+    fn get_sym(&self, addr: u32) -> String {
+        if let Some(sym) = self.syms.iter().find(|(_, v)| **v == addr) {
+            sym.0.to_string()
+        } else {
+            format!("func_{:08x}", addr)
         }
     }
 }

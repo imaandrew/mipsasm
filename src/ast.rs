@@ -144,6 +144,7 @@ pub enum Instruction {
 
 type I = ITypeOp;
 type R = RTypeOp;
+type J = JTypeOp;
 
 impl Instruction {
     pub fn has_delay_slot(&self) -> bool {
@@ -198,6 +199,61 @@ impl Instruction {
             | Instruction::Jump { bytes: b, .. }
             | Instruction::Register { bytes: b, .. } => b.clone(),
             Instruction::Bytes { bytes: b } => vec![*b],
+        }
+    }
+
+    pub fn is_branch(&self) -> bool {
+        match &self {
+            Instruction::Immediate { op, .. } => matches!(
+                op,
+                I::Bltz
+                    | I::Bgez
+                    | I::Bltzl
+                    | I::Bgezl
+                    | I::Bltzal
+                    | I::Bgezal
+                    | I::Bltzall
+                    | I::Bgezall
+                    | I::Bal
+                    | I::Bc0f
+                    | I::Bc0t
+                    | I::Bc0fl
+                    | I::Bc0tl
+                    | I::Bc1f
+                    | I::Bc1t
+                    | I::Bc1fl
+                    | I::Bc1tl
+                    | I::Beq
+                    | I::Bne
+                    | I::Beql
+                    | I::Bnel
+                    | I::Blez
+                    | I::Blezl
+                    | I::Bgtz
+                    | I::Bgtzl
+            ),
+            _ => false,
+        }
+    }
+
+    pub fn is_unconditional_jump(&self) -> bool {
+        matches!(
+            self,
+            Instruction::Jump { op: J::J, .. } | Instruction::Register { op: R::Jr, .. }
+        )
+    }
+
+    pub fn get_branch_offset(&self) -> i32 {
+        match &self {
+            Instruction::Immediate { imm, .. } => imm.as_u32() as i32,
+            _ => panic!(),
+        }
+    }
+
+    pub fn get_jump_target(&self) -> Option<u32> {
+        match &self {
+            Instruction::Jump { target, .. } => Some(target.as_u32()),
+            _ => None,
         }
     }
 }
