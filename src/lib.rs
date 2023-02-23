@@ -157,7 +157,6 @@ impl<'a> Mipsasm<'a> {
             let mut out = vec![];
             let mut func_start = 0;
             let mut function_ended = false;
-            let mut largest_branch = 0;
 
             out.push(format!("{}:", self.get_sym(self.base_addr)));
 
@@ -165,7 +164,6 @@ impl<'a> Mipsasm<'a> {
                 if function_ended {
                     out.push(x[i].to_string());
                     func_start = i * 4;
-                    largest_branch = 0;
                     function_ended = false;
                     if i < x.len() - 1 {
                         out.push(String::new());
@@ -175,10 +173,6 @@ impl<'a> Mipsasm<'a> {
                         ));
                     }
                 } else {
-                    if x[i].is_branch() && x[i].get_branch_offset() > largest_branch {
-                        largest_branch = x[i].get_branch_offset();
-                    }
-
                     if x[i].is_unconditional_jump()
                         && (x[i].get_jump_target() < Some(func_start as u32 + self.base_addr)
                             || x[i].get_jump_target() > Some(i as u32 * 4 + self.base_addr))
