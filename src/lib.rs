@@ -180,8 +180,8 @@ impl<'a> Mipsasm<'a> {
                     }
 
                     if x[i].is_unconditional_jump()
-                        && x[i].get_jump_target() < Some(func_start as u32 + self.base_addr)
-                        || x[i].get_jump_target() > Some(i as u32 * 4 + self.base_addr)
+                        && (x[i].get_jump_target() < Some(func_start as u32 + self.base_addr)
+                            || x[i].get_jump_target() > Some(i as u32 * 4 + self.base_addr))
                     {
                         function_ended = true;
                     }
