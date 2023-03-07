@@ -45,13 +45,20 @@ fn main() -> Result<(), Box<dyn error::Error>> {
     };
 
     let yaml = YamlLoader::load_from_str(&syms).unwrap();
-    let syms: HashMap<u32, &str> = if let Some(hash) = yaml[0].as_hash() {
-        hash.iter()
-            .filter_map(|(k, v)| Some((k.as_i64()? as u32, v.as_str()?)))
-            .collect()
-    } else {
-        HashMap::new()
-    };
+    let syms = yaml.first().map_or_else(HashMap::new, |y| {
+        y.as_hash()
+            .map(|hash| {
+                hash.iter()
+                    .map(|(k, v)| {
+                        (
+                            k.as_i64().unwrap_or_default() as u32,
+                            v.as_str().unwrap_or_default(),
+                        )
+                    })
+                    .collect()
+            })
+            .unwrap_or_default()
+    });
 
     let addr = cli.base_addr.replace("0x", "");
     let addr = u32::from_str_radix(&addr, 16).unwrap_or_else(|_| {
