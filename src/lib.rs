@@ -130,7 +130,7 @@ impl<'a> Mipsasm<'a> {
     /// ```
     pub fn assemble(&self, input: &str) -> Result<Vec<Instruction>, Vec<ParserError>> {
         let mut parser = parser::Parser::new(input, self.base_addr, &self.syms);
-        let mut insts = parser.parse().unwrap();
+        let mut insts = parser.parse()?;
         assembler::assemble(&mut insts);
         Ok(insts)
     }
