@@ -79,8 +79,8 @@ fn main() -> Result<(), Box<dyn error::Error>> {
                 }
             };
 
+            let output = get_bytes(&output);
             if let Some(output_file) = cli.output_file {
-                let output = get_bytes(&output);
                 let bytes: Vec<u8> = output
                     .iter()
                     .flat_map(|word| word.to_be_bytes().to_vec())
