@@ -50,6 +50,7 @@ impl Immediate {
         match self {
             Immediate::Short(i) => *i as u32,
             Immediate::Int(i) => *i,
+            Immediate::Long(i) => *i as u32,
             x => panic!("Cannot convert `{:?}` to u32", x),
         }
     }
@@ -621,7 +622,7 @@ impl fmt::Display for Instruction {
                 e => panic!("{:?} not implemented", e),
             },
             Instruction::Bytes { bytes } => write!(f, "{:11}0x{:08x}", ".word", bytes),
-            e => panic!("Invalid instruction: {:?}", e),
+            e => panic!("Invalid instruction: {:?}", 0),
         }
     }
 }

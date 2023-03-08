@@ -130,8 +130,30 @@ pub fn assemble(insts: &mut Vec<ast::Instruction>) {
                 I::Lh => 0b100001 << 26 | rs.as_num() << 21 | rt.as_num() << 16 | imm.as_u32(),
                 I::Lhu => 0b100101 << 26 | rs.as_num() << 21 | rt.as_num() << 16 | imm.as_u32(),
                 I::Li => {
-                    bytes.push(0b001111 << 26 | rt.as_num() << 16 | imm.as_u32() >> 16);
-                    0b001101 << 26 | rt.as_num() << 21 | rt.as_num() << 16 | imm.as_u32() & 0xFFFF
+                    let imm = imm.as_u32();
+                    // immediate can fit in 16 bits
+                    if imm & 0xFFFF == imm {
+                        // ori rt, zero, imm
+                        0b001101 << 26 | rt.as_num() << 16 | imm
+                    } else {
+                        // check if bottom 16 bits are 0
+                        if imm & 0xFFFF == 0 {
+                            // lui rt, imm >> 16
+                            0b001111 << 26 | rt.as_num() << 16 | imm >> 16
+                        // check if immediate is negative i16
+                        } else if imm & 0xFFFF8000 == 0xFFFF8000 {
+                            // lui rt, imm >> 16
+                            bytes.push(0b001111 << 26 | rt.as_num() << 16 | imm >> 16);
+                            // addiu rt, rt, imm & 0xFFFF
+                            0b001001 << 26 | rt.as_num() << 21 | rt.as_num() << 16 | imm & 0xFFFF
+                        // immediate is positive
+                        } else {
+                            // lui rt, imm >> 16
+                            bytes.push(0b001111 << 26 | rt.as_num() << 16 | imm >> 16);
+                            // ori rt, rt, imm & 0xFFFF
+                            0b001101 << 26 | rt.as_num() << 21 | rt.as_num() << 16 | imm & 0xFFFF
+                        }
+                    }
                 }
                 I::Ll => 0b110000 << 26 | rs.as_num() << 21 | rt.as_num() << 16 | imm.as_u32(),
                 I::Lld => 0b110100 << 26 | rs.as_num() << 21 | rt.as_num() << 16 | imm.as_u32(),

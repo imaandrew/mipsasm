@@ -547,14 +547,12 @@ impl<'a> Parser<'a> {
                 let rt = args.first().unwrap().parse().map_err(
                     |ast::RegParseError::RegParseError(e)| error!(self, InvalidRegister, e),
                 )?;
-                let imm = args.get(1).unwrap();
-                Ok(inst!(
-                    Imm,
-                    op,
-                    ast::Register::null(),
-                    rt,
-                    self.parse_immediate::<i32>(imm)?
-                ))
+                let imm = self.parse_immediate::<i64>(args.get(1).unwrap())?;
+                //TODO: handle this
+                if imm.as_u64() > 0xFFFFFFFF {
+                    panic!();
+                }
+                Ok(inst!(Imm, op, ast::Register::null(), rt, imm))
             }
             "ddiv" | "ddivu" | "div" | "divu" => {
                 if args.len() != 3 && args.len() != 2 {
