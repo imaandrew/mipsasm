@@ -1144,6 +1144,7 @@ pub enum ITypeOp {
     Dsubiu,
     Lli,
     Li,
+    Liu,
     Subi,
     Subiu,
 }

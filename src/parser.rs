@@ -548,9 +548,29 @@ impl<'a> Parser<'a> {
                     |ast::RegParseError::RegParseError(e)| error!(self, InvalidRegister, e),
                 )?;
                 let imm = self.parse_immediate::<i64>(args.get(1).unwrap())?;
-                //TODO: handle this
                 if imm.as_u64() > 0xFFFFFFFF {
-                    panic!();
+                    return Err(error!(
+                        self,
+                        InvalidImmediate,
+                        args.get(1).unwrap().to_string()
+                    ));
+                }
+                Ok(inst!(Imm, op, ast::Register::null(), rt, imm))
+            }
+            "liu" => {
+                if args.len() != 2 {
+                    return Err(error!(self, InvalidOperandCount, arg, 2, args.len()));
+                }
+                let rt = args.first().unwrap().parse().map_err(
+                    |ast::RegParseError::RegParseError(e)| error!(self, InvalidRegister, e),
+                )?;
+                let imm = self.parse_immediate::<i64>(args.get(1).unwrap())?;
+                if imm.as_u64() > 0xFFFFFFFF {
+                    return Err(error!(
+                        self,
+                        InvalidImmediate,
+                        args.get(1).unwrap().to_string()
+                    ));
                 }
                 Ok(inst!(Imm, op, ast::Register::null(), rt, imm))
             }
