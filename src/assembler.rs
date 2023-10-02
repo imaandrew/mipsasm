@@ -5,11 +5,11 @@ type J = ast::JTypeOp;
 type R = ast::RTypeOp;
 
 #[rustfmt::skip]
-pub fn assemble(insts: Vec<ast::Instruction>) -> Vec<u32> {
-    let mut bytes = vec![];
+pub fn assemble(insts: &mut Vec<ast::Instruction>) {
     for inst in insts {
-        let i = match inst {
-            ast::Instruction::Immediate { op, rs, rt, imm } => match op {
+        let mut bytes = vec![];
+        let b = match inst {
+            ast::Instruction::Immediate { op, rs, rt, imm, .. } => match op {
                 I::Addi => 0b001000 << 26 | rs.as_num() << 21 | rt.as_num() << 16 | imm.as_u32(),
                 I::Addiu => 0b001001 << 26 | rs.as_num() << 21 | rt.as_num() << 16 | imm.as_u32(),
                 I::Andi => 0b001100 << 26 | rs.as_num() << 21 | rt.as_num() << 16 | imm.as_u32(),
@@ -130,8 +130,49 @@ pub fn assemble(insts: Vec<ast::Instruction>) -> Vec<u32> {
                 I::Lh => 0b100001 << 26 | rs.as_num() << 21 | rt.as_num() << 16 | imm.as_u32(),
                 I::Lhu => 0b100101 << 26 | rs.as_num() << 21 | rt.as_num() << 16 | imm.as_u32(),
                 I::Li => {
-                    bytes.push(0b001111 << 26 | rt.as_num() << 16 | imm.as_u32() >> 16);
-                    0b001101 << 26 | rt.as_num() << 21 | rt.as_num() << 16 | imm.as_u32() & 0xFFFF
+                    let imm = imm.as_u32();
+                    // immediate can fit in 16 bits
+                    if imm & 0xFFFF == imm {
+                        // ori rt, zero, imm
+                        0b001101 << 26 | rt.as_num() << 16 | imm
+                    } else {
+                        // check if bottom 16 bits are 0
+                        if imm & 0xFFFF == 0 {
+                            // lui rt, imm >> 16
+                            0b001111 << 26 | rt.as_num() << 16 | imm >> 16
+                        // check if immediate is negative i16
+                        } else if imm & 0xFFFF8000 == 0xFFFF8000 {
+                            // lui rt, imm >> 16
+                            bytes.push(0b001111 << 26 | rt.as_num() << 16 | imm >> 16);
+                            // addiu rt, rt, imm & 0xFFFF
+                            0b001001 << 26 | rt.as_num() << 21 | rt.as_num() << 16 | imm & 0xFFFF
+                        // immediate is positive
+                        } else {
+                            // lui rt, imm >> 16
+                            bytes.push(0b001111 << 26 | rt.as_num() << 16 | imm >> 16);
+                            // ori rt, rt, imm & 0xFFFF
+                            0b001101 << 26 | rt.as_num() << 21 | rt.as_num() << 16 | imm & 0xFFFF
+                        }
+                    }
+                }
+                I::Liu => {
+                    let imm = imm.as_u32();
+                    // immediate can fit in 16 bits
+                    if imm & 0xFFFF == imm {
+                        // ori rt, zero, imm
+                        0b001101 << 26 | rt.as_num() << 16 | imm
+                    } else {
+                        // check if bottom 16 bits are 0
+                        if imm & 0xFFFF == 0 {
+                            // lui rt, imm >> 16
+                            0b001111 << 26 | rt.as_num() << 16 | imm >> 16
+                        } else {
+                            // lui rt, imm >> 16
+                            bytes.push(0b001111 << 26 | rt.as_num() << 16 | imm >> 16);
+                            // ori rt, rt, imm & 0xFFFF
+                            0b001101 << 26 | rt.as_num() << 21 | rt.as_num() << 16 | imm & 0xFFFF
+                        }
+                    }
                 }
                 I::Ll => 0b110000 << 26 | rs.as_num() << 21 | rt.as_num() << 16 | imm.as_u32(),
                 I::Lld => 0b110100 << 26 | rs.as_num() << 21 | rt.as_num() << 16 | imm.as_u32(),
@@ -167,11 +208,11 @@ pub fn assemble(insts: Vec<ast::Instruction>) -> Vec<u32> {
                 I::Tnei => 0b000001 << 26 | rs.as_num() << 21 | 0b01110 << 16 | imm.as_u32(),
                 I::Xori => 0b001110 << 26 | rs.as_num() << 21 | rt.as_num() << 16 | imm.as_u32(),
             }
-            ast::Instruction::Jump { op, target } => match op {
+            ast::Instruction::Jump { op, target, .. } => match op {
                 J::J => 0b000010 << 26 | (target.as_u32() & 0x3FFFFFF) >> 2,
                 J::Jal => 0b000011 << 26 | (target.as_u32() & 0x3FFFFFF) >> 2,
             }
-            ast::Instruction::Register { op, rs, rt, rd, sa } => match op {
+            ast::Instruction::Register { op, rs, rt, rd, sa, .. } => match op {
                 R::Abs => {
                     bytes.push(rs.as_num() << 16 | 0b000001 << 11 | 31 << 6 | 0b000011);
                     bytes.push(rs.as_num() << 21 | 0b000001 << 16 | rd.as_num() << 11 | 0b100110);
@@ -184,10 +225,10 @@ pub fn assemble(insts: Vec<ast::Instruction>) -> Vec<u32> {
                 R::AddS => 0b010001 << 26 | 0b10000 << 21 | rt.as_num() << 16 | rs.as_num() << 11 | rd.as_num() << 6,
                 R::AddD => 0b010001 << 26 | 0b10001 << 21 | rt.as_num() << 16 | rs.as_num() << 11 | rd.as_num() << 6,
                 R::And => rs.as_num() << 21 | rt.as_num() << 16 | rd.as_num() << 11 | 0b100100,
-                R::Break => sa << 6 | 0b001101,
+                R::Break => *sa << 6 | 0b001101,
                 R::Clear => rd.as_num() << 11 | 0b100001,
-                R::Cs => 0b010001 << 26 | 0b10000 << 21 | rt.as_num() << 16 | rs.as_num() << 11 | 0b0000011 << 4 | sa as u32,
-                R::Cd => 0b010001 << 26 | 0b10001 << 21 | rt.as_num() << 16 | rs.as_num() << 11 | 0b0000011 << 4 | sa as u32,
+                R::Cs => 0b010001 << 26 | 0b10000 << 21 | rt.as_num() << 16 | rs.as_num() << 11 | 0b0000011 << 4 | *sa as u32,
+                R::Cd => 0b010001 << 26 | 0b10001 << 21 | rt.as_num() << 16 | rs.as_num() << 11 | 0b0000011 << 4 | *sa as u32,
                 R::CeilLS => 0b010001 << 26 | 0b10000 << 21 | rs.as_num() << 11 | rd.as_num() << 6 | 0b001010,
                 R::CeilLD => 0b010001 << 26 | 0b10001 << 21 | rs.as_num() << 11 | rd.as_num() << 6 | 0b001010,
                 R::CeilWS => 0b010001 << 26 | 0b10000 << 21 | rs.as_num() << 11 | rd.as_num() << 6 | 0b001110,
@@ -316,14 +357,14 @@ pub fn assemble(insts: Vec<ast::Instruction>) -> Vec<u32> {
                     bytes.push(rt.as_num() << 21 | rs.as_num() << 16 | rd.as_num() << 11 | 0b010110);
                     rd.as_num() << 21 | 0b000001 << 16 | rd.as_num() << 11 | 0b100101
                 }
-                R::Dsll => rt.as_num() << 16 | rd.as_num() << 11 | (sa as u32) << 6 | 0b111000,
-                R::Dsll32 => rt.as_num() << 16 | rd.as_num() << 11 | (sa as u32) << 6 | 0b111100,
+                R::Dsll => rt.as_num() << 16 | rd.as_num() << 11 | (*sa as u32) << 6 | 0b111000,
+                R::Dsll32 => rt.as_num() << 16 | rd.as_num() << 11 | (*sa as u32) << 6 | 0b111100,
                 R::Dsllv => rs.as_num() << 21 | rt.as_num() << 16 | rd.as_num() << 11 | 0b010100,
-                R::Dsra => rt.as_num() << 16 | rd.as_num() << 11 | (sa as u32) << 6 | 0b111011,
-                R::Dsra32 => rt.as_num() << 16 | rd.as_num() << 11 | (sa as u32) << 6 | 0b111111,
+                R::Dsra => rt.as_num() << 16 | rd.as_num() << 11 | (*sa as u32) << 6 | 0b111011,
+                R::Dsra32 => rt.as_num() << 16 | rd.as_num() << 11 | (*sa as u32) << 6 | 0b111111,
                 R::Dsrav => rs.as_num() << 21 | rt.as_num() << 16 | rd.as_num() << 11 | 0b010111,
-                R::Dsrl => rt.as_num() << 16 | rd.as_num() << 11 | (sa as u32) << 6 | 0b111010,
-                R::Dsrl32 => rt.as_num() << 16 | rd.as_num() << 11 | (sa as u32) << 6 | 0b111110,
+                R::Dsrl => rt.as_num() << 16 | rd.as_num() << 11 | (*sa as u32) << 6 | 0b111010,
+                R::Dsrl32 => rt.as_num() << 16 | rd.as_num() << 11 | (*sa as u32) << 6 | 0b111110,
                 R::Dsrlv => rs.as_num() << 21 | rt.as_num() << 16 | rd.as_num() << 11 | 0b010110,
                 R::Dsub => rs.as_num() << 21 | rt.as_num() << 16 | rd.as_num() << 11 | 0b101110,
                 R::Dsubu => rs.as_num() << 21 | rt.as_num() << 16 | rd.as_num() << 11 | 0b101111,
@@ -420,7 +461,7 @@ pub fn assemble(insts: Vec<ast::Instruction>) -> Vec<u32> {
                     bytes.push(rt.as_num() << 21 | rs.as_num() << 16 | rd.as_num() << 11 | 0b101011);
                     0b001110 << 26 | rd.as_num() << 21 | rd.as_num() << 16 | 1
                 }
-                R::Sll => rt.as_num() << 16 | rd.as_num() << 11 | (sa as u32) << 6,
+                R::Sll => rt.as_num() << 16 | rd.as_num() << 11 | (*sa as u32) << 6,
                 R::Sllv => rs.as_num() << 21 | rt.as_num() << 16 | rd.as_num() << 11 | 0b000100,
                 R::Slt => rs.as_num() << 21 | rt.as_num() << 16 | rd.as_num() << 11 | 0b101010,
                 R::Sltu => rs.as_num() << 21 | rt.as_num() << 16 | rd.as_num() << 11 | 0b101011,
@@ -430,16 +471,16 @@ pub fn assemble(insts: Vec<ast::Instruction>) -> Vec<u32> {
                 }
                 R::SqrtS => 0b010001 << 26 | 0b10000 << 21 | rs.as_num() << 11 | rd.as_num() << 6 | 0b000100,
                 R::SqrtD => 0b010001 << 26 | 0b10001 << 21 | rs.as_num() << 11 | rd.as_num() << 6 | 0b000100,
-                R::Sra => rt.as_num() << 16 | rd.as_num() << 11 | (sa as u32) << 6 | 0b000011,
+                R::Sra => rt.as_num() << 16 | rd.as_num() << 11 | (*sa as u32) << 6 | 0b000011,
                 R::Srav => rs.as_num() << 21 | rt.as_num() << 16 | rd.as_num() << 11 | 0b000111,
-                R::Srl => rt.as_num() << 16 | rd.as_num() << 11 | (sa as u32) << 6 | 0b000010,
+                R::Srl => rt.as_num() << 16 | rd.as_num() << 11 | (*sa as u32) << 6 | 0b000010,
                 R::Srlv => rs.as_num() << 21 | rt.as_num() << 16 | rd.as_num() << 11 | 0b000110,
                 R::Sub => rs.as_num() << 21 | rt.as_num() << 16 | rd.as_num() << 11 | 0b100010,
                 R::Subu => rs.as_num() << 21 | rt.as_num() << 16 | rd.as_num() << 11 | 0b100011,
                 R::SubS => 0b010001 << 26 | 0b10000 << 21 | rt.as_num() << 16 | rs.as_num() << 11 | rd.as_num() << 6 | 0b000001,
                 R::SubD => 0b010001 << 26 | 0b10001 << 21 | rt.as_num() << 16 | rs.as_num() << 11 | rd.as_num() << 6 | 0b000001,
                 R::Sync => 0b001111,
-                R::Syscall => sa << 6 | 0b001100,
+                R::Syscall => *sa << 6 | 0b001100,
                 R::Teq => rs.as_num() << 21 | rt.as_num() << 16 | 0b110100,
                 R::Tge => rs.as_num() << 21 | rt.as_num() << 16 | 0b110000,
                 R::Tgeu => rs.as_num() << 21 | rt.as_num() << 16 | 0b110001,
@@ -456,8 +497,9 @@ pub fn assemble(insts: Vec<ast::Instruction>) -> Vec<u32> {
                 R::TruncWD => 0b010001 << 26 | 0b10001 << 21 | rs.as_num() << 11 | rd.as_num() << 6 | 0b001101,
                 R::Xor => rs.as_num() << 21 | rt.as_num() << 16 | rd.as_num() << 11 | 0b100110,
             }
+            ast::Instruction::Bytes { bytes: b } => *b,
         };
-        bytes.push(i);
+        inst.push_bytes(&mut bytes);
+        inst.push_bytes(&mut vec![b]);
     }
-    bytes
 }

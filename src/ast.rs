@@ -1,5 +1,5 @@
-use regex::Regex;
 use once_cell::sync::Lazy;
+use regex::Regex;
 use std::convert::{From, TryFrom};
 use std::fmt;
 use std::str::FromStr;
@@ -50,6 +50,7 @@ impl Immediate {
         match self {
             Immediate::Short(i) => *i as u32,
             Immediate::Int(i) => *i,
+            Immediate::Long(i) => *i as u32,
             x => panic!("Cannot convert `{:?}` to u32", x),
         }
     }
@@ -103,10 +104,15 @@ struct Signed(u16);
 // https://stackoverflow.com/a/44712309
 impl fmt::LowerHex for Signed {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let val = self.0 as i16;
+        let val = self.0;
         let p = if f.alternate() { "0x" } else { "" };
-        let x = format!("{:x}", val.abs());
-        f.pad_integral(val >= 0, p, &x)
+        let abs_val = if val == i16::MAX.unsigned_abs() {
+            i16::MAX.unsigned_abs()
+        } else {
+            (val as i16).unsigned_abs()
+        };
+        let x = format!("{:x}", abs_val);
+        f.pad_integral(val < i16::MAX.unsigned_abs(), p, &x)
     }
 }
 
@@ -117,10 +123,12 @@ pub enum Instruction {
         rs: Register,
         rt: Register,
         imm: Immediate,
+        bytes: Vec<u32>,
     },
     Jump {
         op: JTypeOp,
         target: Target,
+        bytes: Vec<u32>,
     },
     Register {
         op: RTypeOp,
@@ -128,11 +136,16 @@ pub enum Instruction {
         rt: Register,
         rd: Register,
         sa: u32,
+        bytes: Vec<u32>,
+    },
+    Bytes {
+        bytes: u32,
     },
 }
 
 type I = ITypeOp;
 type R = RTypeOp;
+type J = JTypeOp;
 
 impl Instruction {
     pub fn has_delay_slot(&self) -> bool {
@@ -168,6 +181,80 @@ impl Instruction {
                     | I::Bc1tl
             ),
             Instruction::Register { op, .. } => matches!(op, R::Jr | R::Jalr),
+            Instruction::Bytes { .. } => false,
+        }
+    }
+
+    pub fn push_bytes(&mut self, bytes: &mut Vec<u32>) {
+        match self {
+            Instruction::Immediate { bytes: b, .. }
+            | Instruction::Jump { bytes: b, .. }
+            | Instruction::Register { bytes: b, .. } => b.append(bytes),
+            _ => panic!(),
+        }
+    }
+
+    pub fn get_bytes(&self) -> Vec<u32> {
+        match self {
+            Instruction::Immediate { bytes: b, .. }
+            | Instruction::Jump { bytes: b, .. }
+            | Instruction::Register { bytes: b, .. } => b.clone(),
+            Instruction::Bytes { bytes: b } => vec![*b],
+        }
+    }
+
+    pub fn is_branch(&self) -> bool {
+        match &self {
+            Instruction::Immediate { op, .. } => matches!(
+                op,
+                I::Bltz
+                    | I::Bgez
+                    | I::Bltzl
+                    | I::Bgezl
+                    | I::Bltzal
+                    | I::Bgezal
+                    | I::Bltzall
+                    | I::Bgezall
+                    | I::Bal
+                    | I::Bc0f
+                    | I::Bc0t
+                    | I::Bc0fl
+                    | I::Bc0tl
+                    | I::Bc1f
+                    | I::Bc1t
+                    | I::Bc1fl
+                    | I::Bc1tl
+                    | I::Beq
+                    | I::Bne
+                    | I::Beql
+                    | I::Bnel
+                    | I::Blez
+                    | I::Blezl
+                    | I::Bgtz
+                    | I::Bgtzl
+            ),
+            _ => false,
+        }
+    }
+
+    pub fn is_unconditional_jump(&self) -> bool {
+        matches!(
+            self,
+            Instruction::Jump { op: J::J, .. } | Instruction::Register { op: R::Jr, .. }
+        )
+    }
+
+    pub fn get_branch_offset(&self) -> i32 {
+        match &self {
+            Instruction::Immediate { imm, .. } => imm.as_u32() as i32,
+            _ => panic!(),
+        }
+    }
+
+    pub fn get_jump_target(&self) -> Option<u32> {
+        match &self {
+            Instruction::Jump { target, .. } => Some(target.as_u32()),
+            _ => None,
         }
     }
 }
@@ -180,6 +267,7 @@ impl fmt::Display for Instruction {
                 rs,
                 rt,
                 imm: Immediate::Short(imm),
+                ..
             } => match op {
                 I::Lb
                 | I::Lbu
@@ -270,12 +358,14 @@ impl fmt::Display for Instruction {
                 rs,
                 rt,
                 imm: Immediate::Label(l),
+                ..
             }
             | Instruction::Immediate {
                 op,
                 rs,
                 rt,
                 imm: Immediate::LocalLabel(l),
+                ..
             } => match op {
                 I::Beqz | I::Bgtz | I::Bgtzl | I::Blez | I::Blezl | I::Bnez => {
                     write!(f, "{:11}${}, {}", op, rs, l)
@@ -314,16 +404,25 @@ impl fmt::Display for Instruction {
             Instruction::Jump {
                 op,
                 target: Target::Address(target),
+                ..
             } => {
                 write!(f, "{:11}{:#X?}", op, target)
             }
             Instruction::Jump {
                 op,
                 target: Target::Label(lbl),
+                ..
             } => {
                 write!(f, "{:11}{}", op, lbl)
             }
-            Instruction::Register { op, rs, rt, rd, sa } => match op {
+            Instruction::Register {
+                op,
+                rs,
+                rt,
+                rd,
+                sa,
+                bytes,
+            } => match op {
                 R::Sync => write!(f, "{}", op),
                 R::Add
                 | R::Addu
@@ -392,7 +491,20 @@ impl fmt::Display for Instruction {
                     write!(f, "{:11}${}", op, rd)
                 }
                 R::Cfc0 | R::Ctc0 | R::Dmfc0 | R::Dmtc0 | R::Mfc0 | R::Mtc0 => {
-                    write!(f, "{:11}${}, {}", op, rt, Cop0Register::from(*rd))
+                    if let Ok(rd) = Cop0Register::try_from(*rd) {
+                        write!(f, "{:11}${}, {}", op, rt, rd)
+                    } else {
+                        write!(
+                            f,
+                            "{:11}0x{:08x} {:>10} {:11}${}, {:#04x}",
+                            ".word",
+                            bytes.first().unwrap(),
+                            "#",
+                            op,
+                            rt,
+                            *rd as u32
+                        )
+                    }
                 }
                 R::Cfc1 | R::Ctc1 | R::Dmfc1 | R::Dmtc1 | R::Mfc1 | R::Mtc1 => {
                     write!(f, "{:11}${}, ${}", op, rt, FloatRegister::from(*rd))
@@ -509,7 +621,8 @@ impl fmt::Display for Instruction {
                 }
                 e => panic!("{:?} not implemented", e),
             },
-            e => panic!("Invalid instruction: {:?}", e),
+            Instruction::Bytes { bytes } => write!(f, "{:11}0x{:08x}", ".word", bytes),
+            e => panic!("Invalid instruction: {:?}", 0),
         }
     }
 }
@@ -614,7 +727,6 @@ impl FromStr for Register {
 
     fn from_str(reg: &str) -> Result<Self, Self::Err> {
         let r = reg.trim().trim_start_matches('$');
-
 
         if REG_RE.find(r).is_some() {
             let r = r.trim_start_matches('r');
@@ -924,9 +1036,11 @@ impl FromStr for Cop0Register {
     }
 }
 
-impl From<Register> for Cop0Register {
-    fn from(reg: Register) -> Self {
-        Cop0Register::try_from(reg as u32).unwrap()
+impl TryFrom<Register> for Cop0Register {
+    type Error = RegParseError;
+
+    fn try_from(reg: Register) -> Result<Self, Self::Error> {
+        Cop0Register::try_from(reg as u32)
     }
 }
 
@@ -1030,6 +1144,7 @@ pub enum ITypeOp {
     Dsubiu,
     Lli,
     Li,
+    Liu,
     Subi,
     Subiu,
 }
